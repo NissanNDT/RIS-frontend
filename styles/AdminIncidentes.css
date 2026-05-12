@@ -1,0 +1,186 @@
+/* ============================================================
+   AdminIncidentes.css
+============================================================ */
+
+/* Header row */
+.ai-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.ai-header h1 {
+  margin-bottom: 4px;
+}
+
+.ai-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* New button */
+.ai-btn-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ai-btn-new:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+}
+
+/* Print button variant */
+.ai-btn-print {
+  color: var(--primary) !important;
+  border-color: rgba(200, 16, 46, 0.3) !important;
+}
+
+.ai-btn-print:hover {
+  background: var(--primary-subtle) !important;
+}
+
+/* Action buttons group */
+.ai-action-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Cell helpers */
+.ai-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.ai-plant {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* ── Detail Modal ──────────────────────────────────────────── */
+.ai-detail-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 90%;
+  max-width: 780px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.25s var(--ease-spring);
+}
+
+.ai-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-detail-header h2 {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.ai-detail-header p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.ai-detail-badges {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ai-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ai-detail-full {
+  grid-column: 1 / -1;
+}
+
+.ai-detail-field {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.ai-detail-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.ai-detail-value {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.ai-detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .ai-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-btn-new {
+    justify-content: center;
+  }
+
+  .ai-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ai-detail-modal {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

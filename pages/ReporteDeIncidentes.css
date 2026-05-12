@@ -1,0 +1,537 @@
+/* ============================================================
+   ReporteDeIncidentes.css
+   Estilos exclusivos de la página de reporte de incidentes
+   Paleta: Rojo Nissan / Blanco / Negro
+============================================================ */
+
+/* ── Página wrapper ──────────────────────────────────────── */
+.ir-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 72px;
+  min-height: calc(100vh - var(--navbar-height));
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.ir-header {
+  text-align: center;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+.ir-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  background: var(--primary-subtle);
+  border: 1px solid rgba(200, 16, 46, 0.25);
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 20px;
+}
+
+.ir-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.ir-title {
+  font-size: clamp(1.9rem, 4.5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.ir-title-highlight {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ir-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ── Stepper ─────────────────────────────────────────────── */
+.ir-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 36px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.ir-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.ir-step-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  background: var(--bg-card);
+  transition: all var(--transition-base);
+}
+
+.ir-step--active .ir-step-circle {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+.ir-step--done .ir-step-circle {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.ir-step-check {
+  font-size: 1rem;
+}
+
+.ir-step-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  transition: color var(--transition-base);
+}
+
+.ir-step--active .ir-step-label,
+.ir-step--done .ir-step-label {
+  color: var(--primary);
+}
+
+.ir-step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border-default);
+  margin: 0 8px;
+  margin-bottom: 28px;
+  transition: background var(--transition-base);
+}
+
+.ir-step-line--done {
+  background: var(--primary);
+}
+
+/* ── Card del formulario ─────────────────────────────────── */
+.ir-form-wrapper {
+  width: 100%;
+}
+
+.ir-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  box-shadow: var(--shadow-card);
+  width: 100%;
+  animation: fadeInUp 0.35s var(--ease-out);
+}
+
+.ir-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ir-card-icon {
+  font-size: 1.4rem;
+}
+
+/* ── Grid de campos ──────────────────────────────────────── */
+.ir-grid {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.ir-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.ir-full-width {
+  grid-column: 1 / -1;
+}
+
+/* ── Labels e inputs ─────────────────────────────────────── */
+.ir-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ir-label input,
+.ir-label select,
+.ir-label textarea {
+  padding: 11px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: all var(--transition-base);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ir-label input:focus,
+.ir-label select:focus,
+.ir-label textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.ir-label textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.ir-label select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ── Severity indicator ──────────────────────────────────── */
+.ir-severity-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+  animation: fadeInUp 0.25s var(--ease-out);
+}
+
+.ir-severity-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ir-severity-baja {
+  background: rgba(46, 125, 50, 0.07);
+  border-color: rgba(46, 125, 50, 0.2);
+  color: #2E7D32;
+}
+.ir-severity-baja .ir-severity-dot { background: #2E7D32; }
+
+.ir-severity-media {
+  background: rgba(245, 124, 0, 0.07);
+  border-color: rgba(245, 124, 0, 0.25);
+  color: #E65100;
+}
+.ir-severity-media .ir-severity-dot { background: #E65100; }
+
+.ir-severity-alta {
+  background: rgba(198, 40, 40, 0.07);
+  border-color: rgba(198, 40, 40, 0.25);
+  color: #C62828;
+}
+.ir-severity-alta .ir-severity-dot { background: #C62828; }
+
+.ir-severity-crítica {
+  background: rgba(200, 16, 46, 0.1);
+  border-color: rgba(200, 16, 46, 0.4);
+  color: var(--primary);
+  animation: borderGlow 2s ease-in-out infinite;
+}
+.ir-severity-crítica .ir-severity-dot {
+  background: var(--primary);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* ── Upload zone ─────────────────────────────────────────── */
+.ir-upload-section {
+  margin-bottom: 24px;
+}
+
+.ir-label-text {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.ir-dropzone {
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  background: var(--bg-surface);
+}
+
+.ir-dropzone:hover,
+.ir-dropzone:focus-within {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+}
+
+.ir-dropzone--has-file {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--primary-subtle);
+}
+
+.ir-dropzone-icon {
+  font-size: 2.2rem;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.ir-dropzone-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.ir-dropzone-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.ir-dropzone-hint {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.ir-dropzone-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ir-dropzone-filename {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ir-dropzone-change {
+  font-size: 0.78rem;
+  color: var(--primary);
+}
+
+/* ── Botones ─────────────────────────────────────────────── */
+.ir-form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  gap: 12px;
+}
+
+.ir-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 28px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ir-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+}
+
+.ir-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ir-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.ir-btn-secondary:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.ir-btn-submit {
+  padding: 14px 36px;
+  font-size: 1rem;
+}
+
+.ir-btn-arrow {
+  font-size: 1rem;
+}
+
+/* Spinner */
+.ir-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spinLoader 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Mensajes ─────────────────────────────────────────────── */
+.ir-error-msg {
+  padding: 12px 18px;
+  background: #FFEBEE;
+  color: #C62828;
+  border: 1px solid #EF9A9A;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+  animation: fadeInUp 0.25s var(--ease-out);
+}
+
+/* ── Pantalla de éxito ───────────────────────────────────── */
+.ir-success-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 56px 40px;
+  text-align: center;
+  max-width: 480px;
+  box-shadow: var(--shadow-card);
+}
+
+.ir-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  box-shadow: var(--shadow-glow);
+}
+
+.ir-success-card h2 {
+  font-size: 1.75rem;
+  margin-bottom: 12px;
+}
+
+.ir-success-card p {
+  margin-bottom: 32px;
+  color: var(--text-secondary);
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ir-page {
+    padding: 32px 16px 56px;
+  }
+
+  .ir-card {
+    padding: 24px 18px;
+  }
+
+  .ir-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .ir-stepper {
+    max-width: 100%;
+  }
+
+  .ir-step-label {
+    font-size: 0.65rem;
+  }
+
+  .ir-btn-primary,
+  .ir-btn-secondary {
+    padding: 12px 18px;
+    font-size: 0.875rem;
+  }
+}
