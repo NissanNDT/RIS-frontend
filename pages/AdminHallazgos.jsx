@@ -113,7 +113,7 @@ const AdminHallazgos = () => {
       setLoading(false);
     }
   };
-
+//
   // Filtered findings
   const filtered = useMemo(() => {
     return findings.filter((f) => {
