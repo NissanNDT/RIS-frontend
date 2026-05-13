@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { getAllIncidents, updateIncident } from "../services/incidentService";
 import "../App.css";
-import "../styles/AdmininIncidentes.css";
+import "../styles/AdminIncidentes.css";
 
 /* ── Catálogos ─────────────────────────────────────────────── */
 const TIPO_OPTIONS = [

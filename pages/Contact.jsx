@@ -10,22 +10,22 @@ const contacts = {
     {
       title: "Encargados Shop A1",
       contacts: [
-        { name: "Daniel Ramirez Flores", phone: "449 289 8608", description: "Offline, PDI, Carwash, Bodyshop", icon: "🚗" },
-        { name: "Maria Lopez", phone: "449 123 4567", description: "Supervisor", icon: "👷" },
+        {area: "WORKSHOP", name: "Daniel Ramirez Flores", phone: "449 289 8608", description: "Offline, PDI, Carwash, Bodyshop", icon: "🚗" },
+        {area: "TRUCK", name: "Maria Lopez", phone: "449 123 4567", description: "Supervisor", icon: "👷" },
       ],
     },
     {
       title: "Seguridad A1 Y A2",
       contacts: [
-        { name: "Jose Ignacio Zaldivar Guillen", phone: "777 189 9704", description: "Security Head", icon: "🚒" },
-        { name: "Ana Torres", phone: "449 987 6543", description: "Assistant", icon: "👮" },{ name: "Ana Torres", phone: "449 987 6543", description: "Assistant", icon: "👮" }
+        {area: "1", name: "Jose Ignacio Zaldivar Guillen", phone: "777 189 9704", description: "Security Head", icon: "🚒" },
+        {area: "1", name: "Ana Torres", phone: "449 987 6543", description: "Assistant", icon: "👮" },{area: "1", name: "Ana Torres", phone: "449 987 6543", description: "Assistant", icon: "👮" }
       ],
     },
     {
       title: "Encargados Shop A2",
       contacts: [
-        { name: "Marco Antonio Morales Avila", phone: "493 106 1827", description: "Manager", icon: "🏭" },
-        { name: "Laura Fernandez", phone: "449 654 3210", description: "Coordinator", icon: "👩‍💼" },
+        {area: "1", name: "Marco Antonio Morales Avila", phone: "493 106 1827", description: "Manager", icon: "🏭" },
+        {area: "1", name: "Laura Fernandez", phone: "449 654 3210", description: "Coordinator", icon: "👩‍💼" },
       ],
     },
   ],
@@ -79,9 +79,10 @@ const Contact = () => {
             <h2>{selectedArea.title}</h2>
             {selectedArea.contacts.map((contact, index) => (
               <div key={index} className="popup-grid-item">
-                <p><strong>Nombre:</strong> {contact.name}</p>
-                <p><strong>Teléfono:</strong> {contact.phone}</p>
-                <p><strong>Descripción:</strong> {contact.description}</p>
+                <p><strong>{contact.area}</strong></p>
+                <p><strong>{contact.name}</strong></p>
+                <p>{contact.phone}</p>
+                <p>{contact.description}</p>
               </div>
             ))}
           </div>
