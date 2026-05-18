@@ -54,11 +54,11 @@ const Homepage = () => {
   const countByLevel = (level) => incidents.filter((i) => i.severity === level).length;
 
   const quickLinks = [
-    { icon: "📋", title: "Reportar Hallazgo", desc: "Registra hallazgos de seguridad.", path: "/reporteDeHallazgo" },
-    { icon: "🚨", title: "Reportar Incidente", desc: "Documenta incidentes en planta.", path: "/reporteIncidente" },
-    { icon: "📊", title: "Admin Hallazgos", desc: "Gestiona hallazgos reportados.", path: "/adminHallazgos" },
-    { icon: "📁", title: "Admin Incidentes", desc: "Administra incidentes registrados.", path: "/adminIncidentes" },
-    { icon: "📞", title: "Contactos", desc: "Directorio de emergencia.", path: "/contact" },
+    { icon: "", title: "Reportar Hallazgo", desc: "Registra hallazgos de seguridad.", path: "/reporteDeHallazgo" },
+    { icon: "", title: "Reportar Incidente", desc: "Documenta incidentes en planta.", path: "/reporteIncidente" },
+    { icon: "", title: "Admin Hallazgos", desc: "Gestiona hallazgos reportados.", path: "/adminHallazgos" },
+    { icon: "", title: "Admin Incidentes", desc: "Administra incidentes registrados.", path: "/adminIncidentes" },
+    { icon: "", title: "Contactos", desc: "Directorio de emergencia.", path: "/contact" },
   ];
 
   return (

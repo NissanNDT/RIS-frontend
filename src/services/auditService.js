@@ -35,7 +35,8 @@ export const createAudit = async (auditData) => {
 
 // PUT update audit
 export const updateAudit = async (id, fields) => {
-  const res = await api.put(`/put/audits/${id}`, fields, authHeaders());
+  const config = { ...authHeaders(), withCredentials: true };
+  const res = await api.put(`/put/audits/${id}`, fields, config);
   return res.data;
 };
 

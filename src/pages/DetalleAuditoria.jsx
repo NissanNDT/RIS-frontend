@@ -2,14 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   getAuditById, 
-  getFindingsByAudit, 
   updateAudit 
 } from "../services/auditService";
 import { 
   getPlants, 
   getAreas, 
   createFinding, 
-  updateFinding 
+  updateFinding,
+  getFindingsByAuditId
 } from "../services/findingService";
 import "../styles/Auditorias.css";
 
@@ -57,7 +57,8 @@ const DetalleAuditoria = () => {
   const [findingForm, setFindingForm] = useState({
     description: "",
     location: "",
-    finding_category: "Acto Inseguro"
+    finding_category: "Acto Inseguro",
+    level: "A"
   });
   const [editFindingForm, setEditFindingForm] = useState({});
   const [selectedFindingId, setSelectedFindingId] = useState(null);
@@ -73,7 +74,7 @@ const DetalleAuditoria = () => {
     try {
       const [auditData, findingsData, plantsData, areasData] = await Promise.all([
         getAuditById(id),
-        getFindingsByAudit(id),
+        getFindingsByAuditId(id),
         getPlants(),
         getAreas()
       ]);
@@ -139,8 +140,8 @@ const DetalleAuditoria = () => {
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
-      setFindingForm({ description: "", location: "", finding_category: "Acto Inseguro" });
-      const updatedFindings = await getFindingsByAudit(id);
+      setFindingForm({ description: "", location: "", finding_category: "Acto Inseguro", level: "A" });
+      const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
     } catch (err) {
       console.error("Error creating finding:", err);
@@ -156,7 +157,8 @@ const DetalleAuditoria = () => {
       description: finding.description,
       location: finding.location,
       finding_category: finding.finding_category,
-      status: finding.status
+      status: finding.status,
+      level: finding.level || "A"
     });
     setShowEditFindingModal(true);
   };
@@ -167,7 +169,7 @@ const DetalleAuditoria = () => {
     try {
       await updateFinding(selectedFindingId, editFindingForm);
       setShowEditFindingModal(false);
-      const updatedFindings = await getFindingsByAudit(id);
+      const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
       alert("Hallazgo actualizado");
     } catch (err) {
@@ -238,6 +240,7 @@ const DetalleAuditoria = () => {
                 <div className="finding-meta">
                   <span>📍 <strong>Ubicación:</strong> {f.location}</span>
                   <span>🏷️ <strong>Categoría:</strong> {f.finding_category}</span>
+                  <span>📊 <strong>Nivel:</strong> {f.level || "—"}</span>
                   <span>📅 <strong>ID:</strong> {f.id}</span>
                 </div>
               </div>
@@ -340,6 +343,19 @@ const DetalleAuditoria = () => {
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Nivel</label>
+                    <select 
+                      value={editFindingForm.level} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, level: e.target.value})} 
+                      required
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
                     <label>Estatus</label>
                     <select 
                       value={editFindingForm.status} 
@@ -409,6 +425,20 @@ const DetalleAuditoria = () => {
                       <option value="Acto Inseguro">Acto Inseguro</option>
                       <option value="Condición Insegura">Condición Insegura</option>
                       <option value="Condición NG">Condición NG</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Nivel</label>
+                    <select 
+                      name="level" 
+                      value={findingForm.level} 
+                      onChange={(e) => setFindingForm(p => ({...p, level: e.target.value}))} 
+                      required
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="Otros">Otros</option>
                     </select>
                   </div>
                 </div>

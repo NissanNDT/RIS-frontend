@@ -96,20 +96,21 @@ const AdminIncidentes = () => {
   }), [incidents, search, filterType, filterSeverity, filterStatus]);
 
   /* detail modal */
-  const detailItem = incidents.find((i) => i.id === detailId) || null;
+  const detailItem = incidents.find((i) => (i.id || i.incident_folio) === detailId) || null;
 
   /* edit */
   const startEdit = (inc) => {
-    setEditingId(inc.id);
+    setEditingId(inc.id || inc.incident_folio);
     setEditForm({
-      incident_type: inc.incident_type || "",
-      severity: inc.severity || "",
-      status: inc.status || "",
+      level: inc.level || "",
       description: inc.description || "",
-      immediate_actions: inc.immediate_actions || "",
-      corrective_actions: inc.corrective_actions || "",
+      root_cause: inc.root_cause || "",
       id_responsible_user: inc.id_responsible_user || "",
-      follow_up_date: fmtDateInput(inc.follow_up_date),
+      id_general_sv: inc.id_general_sv || "",
+      id_junior: inc.id_junior || "",
+      incident_mechanism: inc.incident_mechanism || "",
+      injury: inc.injury || "",
+      id_cost_center: inc.id_cost_center || "",
     });
     setSuccessMsg("");
   };
@@ -281,15 +282,15 @@ const AdminIncidentes = () => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Fecha</th>
+                  <th>Folio</th>
+                  <th>Fecha y Hora</th>
                   <th>Planta / Área</th>
-                  <th>Tipo</th>
-                  <th>Gravedad</th>
-                  <th>Descripción</th>
-                  <th>Estatus</th>
-                  <th>Responsable</th>
-                  <th>Seguimiento</th>
+                  <th>Nivel</th>
+                  <th>Ubicación</th>
+                  <th>Involucrados</th>
+                  <th>Mecanismo / Lesión</th>
+                  <th>Descripción / Causa Raíz</th>
+                  <th>C. Costo</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -297,30 +298,38 @@ const AdminIncidentes = () => {
                 {filtered.length === 0 ? (
                   <tr><td colSpan="10" className="admin-empty">No se encontraron incidentes</td></tr>
                 ) : filtered.map((inc) => (
-                  <tr key={inc.id} className={editingId === inc.id ? "row-editing" : ""}>
-                    <td className="cell-id">INC-{String(inc.id).padStart(4, "0")}</td>
-                    <td>{fmtDate(inc.incident_date)}<br /><small className="ai-time">{inc.incident_time}</small></td>
+                  <tr key={inc.id || inc.incident_folio} className={editingId === (inc.id || inc.incident_folio) ? "row-editing" : ""}>
+                    <td className="cell-id">{inc.incident_folio || "—"}</td>
+                    <td>{fmtDate(inc.date)}<br /><small className="ai-time">{inc.time}</small></td>
                     <td>
-                      <span className="ai-plant">{inc.id_plant?.split("–")[0]?.trim()}</span><br />
-                      <small>{inc.id_area}</small>
+                      <span className="ai-plant">{inc.id_plant || "—"}</span><br />
+                      <small>{inc.id_area || "—"}</small>
                     </td>
-                    <td><span className="category-badge">{inc.incident_type}</span></td>
                     <td>
-                      <span className="status-badge" style={{ background: SEVERITY_COLORS[inc.severity] || "#888" }}>
-                        {inc.severity}
+                      <span className="status-badge" style={{ background: SEVERITY_COLORS[inc.level] || "#888" }}>
+                        {inc.level || "—"}
                       </span>
                     </td>
-                    <td className="cell-desc">{inc.description}</td>
+                    <td>{inc.location || "—"}</td>
                     <td>
-                      <span className="status-badge" style={{ background: STATUS_COLORS[inc.status] || "#888" }}>
-                        {inc.status}
-                      </span>
+                      <small><strong>Resp:</strong> {inc.id_responsible_user || "—"}</small><br/>
+                      <small><strong>SV:</strong> {inc.id_general_sv || "—"}</small><br/>
+                      <small><strong>Jr:</strong> {inc.id_junior || "—"}</small>
                     </td>
-                    <td>{inc.id_responsible_user || "—"}</td>
-                    <td>{fmtDate(inc.follow_up_date)}</td>
+                    <td>
+                      <small><strong>Mec:</strong> {inc.incident_mechanism || "—"}</small><br/>
+                      <small><strong>Les:</strong> {inc.injury || "—"}</small>
+                    </td>
+                    <td className="cell-desc">
+                      <div style={{ maxHeight: '60px', overflowY: 'auto' }}>
+                        <small><strong>Desc:</strong> {inc.description || "—"}</small><br/>
+                        <small><strong>Causa:</strong> {inc.root_cause || "—"}</small>
+                      </div>
+                    </td>
+                    <td>{inc.id_cost_center || "—"}</td>
                     <td>
                       <div className="ai-action-btns">
-                        <button className="btn-edit" onClick={() => setDetailId(inc.id)} title="Ver detalle">👁️</button>
+                        <button className="btn-edit" onClick={() => setDetailId(inc.id || inc.incident_folio)} title="Ver detalle">👁️</button>
                         <button className="btn-edit" onClick={() => startEdit(inc)} title="Editar">✏️</button>
                         <button className="btn-edit ai-btn-print" onClick={() => printIncident(inc)} title="Generar formato">🖨️</button>
                       </div>
@@ -339,8 +348,8 @@ const AdminIncidentes = () => {
           <div className="ai-detail-modal glass" onClick={(e) => e.stopPropagation()}>
             <div className="ai-detail-header">
               <div>
-                <h2>INC-{String(detailItem.id).padStart(4, "0")}</h2>
-                <p>{detailItem.incident_type}</p>
+                <h2>{detailItem.incident_folio || `INC-${String(detailItem.id).padStart(4, "0")}`}</h2>
+                <p>{detailItem.location}</p>
               </div>
               <div className="ai-detail-badges">
                 <span className="status-badge" style={{ background: SEVERITY_COLORS[detailItem.severity] || "#888" }}>
@@ -356,15 +365,15 @@ const AdminIncidentes = () => {
               {[
                 ["Planta", detailItem.id_plant],
                 ["Área", detailItem.id_area],
-                ["Turno", detailItem.shift],
-                ["Fecha", fmtDate(detailItem.incident_date)],
-                ["Hora", detailItem.incident_time],
-                ["Lugar / Equipo", detailItem.location],
-                ["Causa inmediata", detailItem.immediate_cause],
-                ["Parte del cuerpo", detailItem.body_part_affected],
-                ["Testigos", detailItem.witnesses || "—"],
+                ["Fecha", fmtDate(detailItem.date)],
+                ["Hora", detailItem.time],
+                ["Ubicación", detailItem.location],
+                ["Mecanismo", detailItem.incident_mechanism],
+                ["Lesión", detailItem.injury],
                 ["Responsable", detailItem.id_responsible_user || "—"],
-                ["Fecha seguimiento", fmtDate(detailItem.follow_up_date)],
+                ["SV General", detailItem.id_general_sv || "—"],
+                ["Junior", detailItem.id_junior || "—"],
+                ["Centro de Costo", detailItem.id_cost_center || "—"],
               ].map(([label, value]) => (
                 <div key={label} className="ai-detail-field">
                   <span className="ai-detail-label">{label}</span>
@@ -373,15 +382,11 @@ const AdminIncidentes = () => {
               ))}
               <div className="ai-detail-field ai-detail-full">
                 <span className="ai-detail-label">Descripción</span>
-                <span className="ai-detail-value">{detailItem.description}</span>
+                <span className="ai-detail-value">{detailItem.description || "—"}</span>
               </div>
               <div className="ai-detail-field ai-detail-full">
-                <span className="ai-detail-label">Acciones inmediatas</span>
-                <span className="ai-detail-value">{detailItem.immediate_actions || "—"}</span>
-              </div>
-              <div className="ai-detail-field ai-detail-full">
-                <span className="ai-detail-label">Acciones correctivas</span>
-                <span className="ai-detail-value">{detailItem.corrective_actions || "—"}</span>
+                <span className="ai-detail-label">Causa Raíz</span>
+                <span className="ai-detail-value">{detailItem.root_cause || "—"}</span>
               </div>
             </div>
 

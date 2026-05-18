@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   getAllAudits, 
-  createAudit
+  createAudit,
+  updateAudit
 } from "../services/auditService";
 import { getPlants, getAreas } from "../services/findingService";
 import "../styles/Auditorias.css";
@@ -44,6 +45,8 @@ const Auditorias = () => {
 
   // Modal states
   const [showNewAuditModal, setShowNewAuditModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   
   // Form states
   const [auditForm, setAuditForm] = useState({
@@ -107,6 +110,8 @@ const Auditorias = () => {
       
       console.log("Enviando petición de creación:", payload);
       const result = await createAudit(payload);
+      console.log("Tipo de result", typeof(result));
+      console.log("Json",payload)
       console.log("Resultado de creación:", result);
 
       setShowNewAuditModal(false);
@@ -128,12 +133,56 @@ const Auditorias = () => {
     }
   };
 
+  const handleEdit = (audit) => {
+    setIsEditing(true);
+    setEditingId(audit.id);
+    setAuditForm({
+      name: audit.name || "",
+      id_plant: audit.id_plant || "",
+      id_area: audit.id_area || "",
+      type: audit.type || "SES"
+    });
+    setShowNewAuditModal(true);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        ...auditForm,
+        id_plant: Number(auditForm.id_plant),
+        id_area: Number(auditForm.id_area)
+      };
+      
+      await updateAudit(editingId, payload);
+      
+      setShowNewAuditModal(false);
+      setIsEditing(false);
+      setEditingId(null);
+      setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
+      
+      fetchData();
+    } catch (err) {
+      console.error("Error updating audit:", err);
+      const errorMessage = err.response?.data?.error || err.message || "Error desconocido";
+      alert(`Error al actualizar la auditoría: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="auditorias-page">
       <div className="auditorias-container">
         <div className="auditorias-header animate-in">
           <h1>Auditorías</h1>
-          <button className="btn-new-audit" onClick={() => setShowNewAuditModal(true)}>
+          <button className="btn-new-audit" onClick={() => {
+            setIsEditing(false);
+            setEditingId(null);
+            setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
+            setShowNewAuditModal(true);
+          }}>
             + Nueva Auditoría
           </button>
         </div>
@@ -169,8 +218,8 @@ const Auditorias = () => {
             <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
               <option value="">Todas</option>
               {areas
-                .filter(a => !filterPlant || String(a.id_plant) === String(filterPlant))
-                .map(a => <option key={a.id} value={a.id}>{a.name}</option>)
+                .filter(a => !filterPlant || !a.id_plant || String(a.id_plant) === String(filterPlant))
+                .map(a => <option key={a.id} value={a.id}>{a.nombre || a.name}</option>)
               }
             </select>
           </div>
@@ -195,7 +244,7 @@ const Auditorias = () => {
                     📍 Planta: <span>{plants.find(p => p.id === audit.id_plant)?.name || audit.id_plant}</span>
                   </div>
                   <div className="info-item">
-                    🧱 Área: <span>{areas.find(a => a.id === audit.id_area)?.name || audit.id_area}</span>
+                    🧱 Área: <span>{areas.find(a => a.id === audit.id_area)?.nombre || areas.find(a => a.id === audit.id_area)?.name || audit.id_area}</span>
                   </div>
                   <div className="info-item">
                     📅 Creado: <span>{new Date(audit.created_at).toLocaleDateString()}</span>
@@ -203,8 +252,11 @@ const Auditorias = () => {
                 </div>
 
                 <div className="audit-actions">
-                  <button className="btn-action btn-view">
+                  <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); navigate(`/auditorias/${audit.id}`); }}>
                     👁️ Ver Detalle
+                  </button>
+                  <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); handleEdit(audit); }}>
+                    ✏️ Editar
                   </button>
                 </div>
               </div>
@@ -218,10 +270,10 @@ const Auditorias = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>Nueva Auditoría</h2>
+              <h2>{isEditing ? "Editar Auditoría" : "Nueva Auditoría"}</h2>
               <button className="btn-close" onClick={() => setShowNewAuditModal(false)}>&times;</button>
             </div>
-            <form onSubmit={handleCreateAudit}>
+            <form onSubmit={isEditing ? handleUpdate : handleCreateAudit}>
               <div className="modal-body">
                 <div className="audit-form-grid">
                   <div className="form-group full">
@@ -247,8 +299,8 @@ const Auditorias = () => {
                     <select name="id_area" value={auditForm.id_area} onChange={handleAuditChange} required>
                       <option value="">Selecciona Área</option>
                       {areas
-                        .filter(a => !auditForm.id_plant || String(a.id_plant) === String(auditForm.id_plant))
-                        .map(a => <option key={a.id} value={a.id}>{a.name}</option>)
+                        .filter(a => !auditForm.id_plant || !a.id_plant || String(a.id_plant) === String(auditForm.id_plant))
+                        .map(a => <option key={a.id} value={a.id}>{a.nombre || a.name}</option>)
                       }
                     </select>
                   </div>
@@ -264,7 +316,7 @@ const Auditorias = () => {
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={() => setShowNewAuditModal(false)}>Cancelar</button>
                 <button type="submit" className="btn-save" disabled={saving}>
-                  {saving ? "Guardando..." : "Crear Auditoría"}
+                  {saving ? "Guardando..." : isEditing ? "Actualizar Auditoría" : "Crear Auditoría"}
                 </button>
               </div>
             </form>
