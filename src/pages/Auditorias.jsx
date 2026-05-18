@@ -8,26 +8,7 @@ import {
 import { getPlants, getAreas } from "../services/findingService";
 import "../styles/Auditorias.css";
 
-const DEMO_AUDITS = [
-  {
-    id: 1,
-    name: "Auditoría de Seguridad Trimestral - Planta A1",
-    audit_folio: "SES-1-ENSAMBLE-001",
-    id_plant: 1,
-    id_area: 101,
-    type: "SES",
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 2,
-    name: "Revisión de Procesos Críticos - Logística",
-    audit_folio: "FPES-1-LOG-002",
-    id_plant: 1,
-    id_area: 102,
-    type: "FPES",
-    created_at: new Date().toISOString()
-  }
-];
+
 
 const Auditorias = () => {
   const navigate = useNavigate();
@@ -70,13 +51,13 @@ const Auditorias = () => {
         getPlants(),
         getAreas()
       ]);
-      setAudits(auditsData.length > 0 ? auditsData : DEMO_AUDITS);
-      setPlants(plantsData);
-      setAreas(areasData);
+      setAudits(auditsData || []);
+      setPlants(plantsData || []);
+      setAreas(areasData || []);
     } catch (err) {
       console.error("Error fetching data:", err);
-      setAudits(DEMO_AUDITS);
-      setError("Usando datos de demostración.");
+      setAudits([]);
+      setError("Error al cargar las auditorías.");
     } finally {
       setLoading(false);
     }
