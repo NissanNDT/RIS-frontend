@@ -191,6 +191,54 @@
   background: linear-gradient(135deg, var(--primary-light), var(--primary));
 }
 
+/* Info del usuario logueado dentro del dropdown */
+.user-dropdown-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.user-dropdown-avatar {
+  color: var(--primary-light);
+  flex-shrink: 0;
+}
+
+.user-dropdown-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botón Cerrar sesión — estilo destructivo */
+.btn-logout {
+  width: 100%;
+  padding: 10px;
+  background: transparent !important;
+  border: 1px solid rgba(200, 16, 46, 0.5) !important;
+  color: var(--primary-light) !important;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-sans);
+  box-shadow: none !important;
+}
+
+.btn-logout:hover {
+  background: rgba(200, 16, 46, 0.15) !important;
+  border-color: var(--primary) !important;
+  color: #ff4d6d !important;
+  transform: translateY(-1px);
+  box-shadow: none !important;
+}
+
 /* =========================
    LOGIN PAGE
 ========================= */

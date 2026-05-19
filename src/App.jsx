@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Homepage from "./pages/HomePage";
 import Contact from "./pages/Contact";
@@ -16,16 +17,19 @@ function App() {
     <BrowserRouter>
       <Navbar />
       <Routes>
+        {/* ── Rutas públicas ── */}
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/contact" element={<Contact />} /> 
-        <Route path="/reporteDeHallazgo" element={<ReporteDeHallazgo />} />
-        <Route path="/adminHallazgos" element={<AdminHallazgos />} />
-        <Route path="/reporteIncidente" element={<ReporteDeIncidentes />} />
-        <Route path="/adminIncidentes" element={<AdminIncidentes />} />
-        <Route path="/auditorias" element={<Auditorias />} />
-        <Route path="/auditorias/:id" element={<DetalleAuditoria />} />
-        <Route path="/llenadoFormatoIncidente" element={<LlenadoFormatoIncidente />} />
+        <Route path="/contact" element={<Contact />} />
+
+        {/* ── Rutas privadas (requieren sesión) ── */}
+        <Route path="/reporteDeHallazgo" element={<ProtectedRoute><ReporteDeHallazgo /></ProtectedRoute>} />
+        <Route path="/adminHallazgos" element={<ProtectedRoute><AdminHallazgos /></ProtectedRoute>} />
+        <Route path="/reporteIncidente" element={<ProtectedRoute><ReporteDeIncidentes /></ProtectedRoute>} />
+        <Route path="/adminIncidentes" element={<ProtectedRoute><AdminIncidentes /></ProtectedRoute>} />
+        <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
+        <Route path="/auditorias/:id" element={<ProtectedRoute><DetalleAuditoria /></ProtectedRoute>} />
+        <Route path="/llenadoFormatoIncidente" element={<ProtectedRoute><LlenadoFormatoIncidente /></ProtectedRoute>} />
         {/* demás rutas */}
       </Routes>
     </BrowserRouter>

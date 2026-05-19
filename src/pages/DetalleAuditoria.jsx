@@ -6,6 +6,7 @@ import {
 import { 
   getPlants, 
   getAreas, 
+  getUsers,
   createFinding, 
   updateFinding,
   getFindingsByAuditId
@@ -45,6 +46,7 @@ const DetalleAuditoria = () => {
   const [loading, setLoading] = useState(true);
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [users, setUsers] = useState([]);
   
   // Modals
   const [showAddFindingModal, setShowAddFindingModal] = useState(false);
@@ -70,11 +72,12 @@ const DetalleAuditoria = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [auditData, findingsData, plantsData, areasData] = await Promise.all([
+      const [auditData, findingsData, plantsData, areasData, usersData] = await Promise.all([
         getAuditById(id),
         getFindingsByAuditId(id),
         getPlants(),
-        getAreas()
+        getAreas(),
+        getUsers().catch(() => [])
       ]);
       
       const currentAudit = auditData || DEMO_AUDITS.find(a => String(a.id) === String(id));
@@ -82,6 +85,7 @@ const DetalleAuditoria = () => {
       setFindings(findingsData.length > 0 ? findingsData : DEMO_FINDINGS.filter(f => String(f.id_audit) === String(id)));
       setPlants(plantsData);
       setAreas(areasData);
+      setUsers(usersData);
       
       // Init edit form
       if (currentAudit) {
@@ -102,6 +106,26 @@ const DetalleAuditoria = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getUserFullName = (id) => {
+    if (!id) return "—";
+    const user = users.find((u) => String(u.id) === String(id));
+    return user ? user.full_name : `Usuario ${id}`;
+  };
+
+  const handleToggleStatus = async (finding) => {
+    const newStatus = finding.status === "En revisión" ? "Abierto" : "En revisión";
+    
+    // Update local state first
+    setFindings(prev => prev.map(f => f.id === finding.id ? { ...f, status: newStatus } : f));
+    
+    // Call update API
+    try {
+      await updateFinding(finding.id, { status: newStatus });
+    } catch (err) {
+      console.error("Error updating finding status:", err);
     }
   };
 
@@ -163,6 +187,7 @@ const DetalleAuditoria = () => {
 
   const plantName = plants.find(p => p.id === audit.id_plant)?.name || audit.id_plant;
   const areaName = areas.find(a => a.id === audit.id_area)?.name || audit.id_area;
+  const responsibleName = getUserFullName(audit.id_responsible_user || audit.id_audit_user);
 
   return (
     <div className="auditorias-page">
@@ -186,7 +211,7 @@ const DetalleAuditoria = () => {
             onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
           >
-            ⬅️ Volver a Auditorías
+             Volver a Auditorías
           </button>
         </div>
 
@@ -206,9 +231,9 @@ const DetalleAuditoria = () => {
 
           <div className="audit-info" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem' }}>
             <div className="info-item">📍 Planta: <span>{plantName}</span></div>
-            <div className="info-item">🧱 Área: <span>{areaName}</span></div>
-            <div className="info-item">📅 Fecha: <span>{new Date(audit.created_at).toLocaleDateString()}</span></div>
-            <div className="info-item">👤 Responsable: <span>{audit.full_name || `Usuario ${audit.id_audit_user}`}</span></div>
+            <div className="info-item"> Área: <span>{areaName}</span></div>
+            <div className="info-item"> Fecha: <span>{new Date(audit.created_at).toLocaleDateString()}</span></div>
+            <div className="info-item"> Responsable: <span>{responsibleName}</span></div>
           </div>
         </div>
 
@@ -225,15 +250,24 @@ const DetalleAuditoria = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <div className="finding-desc" style={{ fontSize: '1.1rem' }}>{f.description}</div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <span className="status-badge" style={{ background: f.status === 'Abierto' ? 'var(--primary)' : '#43A047' }}>{f.status}</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', cursor: 'pointer', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={f.status === "En revisión"} 
+                        onChange={() => handleToggleStatus(f)}
+                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                      />
+                      <span>En revisión</span>
+                    </label>
+                    <span className="status-badge" style={{ background: f.status === 'Abierto' ? 'var(--primary)' : f.status === 'En revisión' ? '#FB8C00' : '#43A047' }}>{f.status}</span>
                     <button className="btn-view" style={{ padding: '0.4rem', fontSize: '0.8rem' }} onClick={() => openEditFinding(f)}>✏️</button>
                   </div>
                 </div>
                 <div className="finding-meta">
                   <span>📍 <strong>Ubicación:</strong> {f.location}</span>
-                  <span>🏷️ <strong>Categoría:</strong> {f.finding_category}</span>
-                  <span>📊 <strong>Nivel:</strong> {f.level || "—"}</span>
-                  <span>📅 <strong>ID:</strong> {f.id}</span>
+                  <span> <strong>Categoría:</strong> {f.finding_category}</span>
+                  <span> <strong>Nivel:</strong> {f.level || "—"}</span>
+                  <span> <strong>ID:</strong> {f.id}</span>
                 </div>
               </div>
             ))}

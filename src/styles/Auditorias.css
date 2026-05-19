@@ -340,3 +340,51 @@
     font-weight: 600;
     cursor: pointer;
 }
+
+/* Responsive adjustments for modals and forms */
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 1rem;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        width: 92%;
+        max-width: 500px;
+        max-height: 85vh;
+        border-radius: 12px;
+        margin: auto;
+    }
+    
+    .modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    .audit-form-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+    
+    .audits-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .auditorias-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .auditorias-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-item {
+        width: 100%;
+    }
+}

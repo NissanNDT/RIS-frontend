@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import logoNissan from "../assets/Nissan.png";
+import { logoutRequest } from "../services/authService";
 import "../App.css";
 
 const Navbar = () => {
@@ -10,10 +11,21 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Detectar sesión activa
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isLoggedIn = Boolean(user);
+
   const goTo = (path) => {
     setOpen(false);
     setMenuOpen(false);
     navigate(path);
+  };
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logoutRequest(); // limpia cookie httpOnly + localStorage
+    navigate("/", { replace: true }); // replace evita volver con "atrás"
   };
 
   const isActive = (path) => location.pathname === path;
@@ -74,9 +86,23 @@ const Navbar = () => {
             className="login-popup-content user-dropdown"
             onClick={(e) => e.stopPropagation()}
           >
-            <button onClick={() => goTo("/login")}>
-              Iniciar sesión
-            </button>
+            {isLoggedIn ? (
+              <>
+                <div className="user-dropdown-info">
+                  <FaUserCircle size={32} className="user-dropdown-avatar" />
+                  <span className="user-dropdown-name">
+                    {user.name || user.email || "Usuario"}
+                  </span>
+                </div>
+                <button className="btn-logout" onClick={handleLogout}>
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <button onClick={() => goTo("/login")}>
+                Iniciar sesión
+              </button>
+            )}
           </div>
         </div>
       )}

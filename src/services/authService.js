@@ -6,7 +6,7 @@ export const loginRequest = async (email, password) => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include", //  CLAVE
+    credentials: "include", // CLAVE: envía/recibe cookies httpOnly
     body: JSON.stringify({ email, password }),
   });
 
@@ -16,4 +16,21 @@ export const loginRequest = async (email, password) => {
   }
 
   return response.json();
+};
+
+/**
+ * Cierra sesión en el backend para que elimine la cookie httpOnly del token.
+ * También limpia el localStorage del lado del cliente.
+ */
+export const logoutRequest = async () => {
+  try {
+    await fetch(`${API_URL}/logout`, {
+      method: "POST",
+      credentials: "include", // CLAVE: envía la cookie para que el backend la invalide
+    });
+  } catch {
+    // Si el backend no responde, el logout del cliente continúa de todas formas
+  } finally {
+    localStorage.removeItem("user");
+  }
 };
