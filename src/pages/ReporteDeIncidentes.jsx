@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { createIncident } from "../services/incidentService";
 import api from "../api/axios";
 import "../App.css";
@@ -8,10 +9,13 @@ const GRAVEDAD = ["G", "U", "R", "FR1", "FR0"];
 
 const ReporteDeIncidentes = () => {
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [showFormatModal, setShowFormatModal] = useState(false);
+  const [createdIncidentData, setCreatedIncidentData] = useState(null);
 
   const [formData, setFormData] = useState({
     id_plant: 1,
@@ -119,13 +123,13 @@ const handleSubmit = async (e) => {
 
     console.log("JSON", payload);
 
-    await createIncident(payload);
-
+    const res = await createIncident(payload);
+    setCreatedIncidentData(res.data?.data || res.data || payload);
     setSuccess(true);
+    setShowFormatModal(true);
 
   } catch (err) {
     console.error(err.response || err);
-    log.console(err)
 
     if (err.response?.status === 401) {
       setError("Sesión expirada. Vuelve a iniciar sesión.");
@@ -145,7 +149,56 @@ const handleSubmit = async (e) => {
           <div className="ir-success-icon">✓</div>
           <h2>¡Reporte enviado!</h2>
           <p>Se guardó correctamente en la base de datos.</p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                navigate("/adminIncidentes");
+              }}
+            >
+              Ir a Administración
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => setShowFormatModal(true)}
+            >
+              Generar Formato
+            </button>
+          </div>
         </div>
+
+        {showFormatModal && (
+          <div className="popup">
+            <div className="modal-content glass animate-in" style={{ padding: '28px', textAlign: 'center', maxWidth: '450px' }}>
+              <h2 style={{ color: 'var(--primary)', marginBottom: '12px' }}>¿Deseas generar el formato del incidente?</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+                Esto te redirigirá al formulario detallado de 11 secciones, pre-llenando la información general del reporte.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowFormatModal(false);
+                    navigate("/adminIncidentes");
+                  }}
+                >
+                  No, más tarde
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    setShowFormatModal(false);
+                    navigate("/llenadoFormatoIncidente", {
+                      state: { incident: createdIncidentData },
+                    });
+                  }}
+                >
+                  Sí, Generar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -249,9 +302,11 @@ const handleSubmit = async (e) => {
 
         {error && <div className="ir-error-msg">{error}</div>}
 
-        <button className="ir-btn-primary" disabled={submitting}>
-          {submitting ? "Enviando..." : "Enviar Reporte"}
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+          <button className="ir-btn-primary" disabled={submitting}>
+            {submitting ? "Enviando..." : "Enviar Reporte"}
+          </button>
+        </div>
       </form>
     </div>
   );

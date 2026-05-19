@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  getAuditById, 
-  updateAudit 
+  getAuditById
 } from "../services/auditService";
 import { 
   getPlants, 
@@ -49,7 +48,6 @@ const DetalleAuditoria = () => {
   
   // Modals
   const [showAddFindingModal, setShowAddFindingModal] = useState(false);
-  const [showEditAuditModal, setShowEditAuditModal] = useState(false);
   const [showEditFindingModal, setShowEditFindingModal] = useState(false);
 
   // Forms
@@ -107,26 +105,6 @@ const DetalleAuditoria = () => {
     }
   };
 
-  const handleUpdateAudit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const payload = {
-        ...auditForm,
-        id_plant: Number(auditForm.id_plant),
-        id_area: Number(auditForm.id_area)
-      };
-      await updateAudit(id, payload);
-      setShowEditAuditModal(false);
-      fetchData();
-      alert("Auditoría actualizada");
-    } catch (err) {
-      console.error("Error updating audit:", err);
-      alert(err.response?.data?.error || "Error al actualizar la auditoría");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleCreateFinding = async (e) => {
     e.preventDefault();
@@ -190,11 +168,25 @@ const DetalleAuditoria = () => {
     <div className="auditorias-page">
       <div className="auditorias-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <button className="btn-view" onClick={() => navigate("/auditorias")}>
+          <button 
+            onClick={() => navigate("/auditorias")}
+            style={{
+              padding: '0.6rem 1.2rem',
+              borderRadius: '8px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border-subtle, #333)',
+              color: 'var(--text-primary)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'background 0.2s ease, opacity 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+          >
             ⬅️ Volver a Auditorías
-          </button>
-          <button className="btn-action btn-view" onClick={() => setShowEditAuditModal(true)}>
-            ✏️ Editar Auditoría
           </button>
         </div>
 
@@ -216,7 +208,7 @@ const DetalleAuditoria = () => {
             <div className="info-item">📍 Planta: <span>{plantName}</span></div>
             <div className="info-item">🧱 Área: <span>{areaName}</span></div>
             <div className="info-item">📅 Fecha: <span>{new Date(audit.created_at).toLocaleDateString()}</span></div>
-            <div className="info-item">👤 Responsable ID: <span>{audit.id_audit_user}</span></div>
+            <div className="info-item">👤 Responsable: <span>{audit.full_name || `Usuario ${audit.id_audit_user}`}</span></div>
           </div>
         </div>
 
@@ -249,57 +241,6 @@ const DetalleAuditoria = () => {
         )}
       </div>
 
-      {/* Edit Audit Modal */}
-      {showEditAuditModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>Editar Auditoría</h2>
-              <button className="btn-close" onClick={() => setShowEditAuditModal(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleUpdateAudit}>
-              <div className="modal-body">
-                <div className="audit-form-grid">
-                  <div className="form-group full">
-                    <label>Nombre de la Auditoría</label>
-                    <input 
-                      type="text" 
-                      value={auditForm.name} 
-                      onChange={(e) => setAuditForm({...auditForm, name: e.target.value})} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Planta</label>
-                    <select value={auditForm.id_plant} onChange={(e) => setAuditForm({...auditForm, id_plant: e.target.value})} required>
-                      {plants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Área</label>
-                    <select value={auditForm.id_area} onChange={(e) => setAuditForm({...auditForm, id_area: e.target.value})} required>
-                      {areas.filter(a => String(a.id_plant) === String(auditForm.id_plant)).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Tipo</label>
-                    <select value={auditForm.type} onChange={(e) => setAuditForm({...auditForm, type: e.target.value})} required>
-                      <option value="SES">SES</option>
-                      <option value="FPES">FPES</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={() => setShowEditAuditModal(false)}>Cancelar</button>
-                <button type="submit" className="btn-save" disabled={saving}>
-                  {saving ? "Guardando..." : "Actualizar Auditoría"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Edit Finding Modal */}
       {showEditFindingModal && (

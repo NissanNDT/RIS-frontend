@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { getAllIncidents, updateIncident } from "../services/incidentService";
+import { getPlants, getAreas, getUsers } from "../services/findingService";
+import api from "../api/axios";
 import "../App.css";
 import "../styles/AdminIncidentes.css";
 
@@ -16,12 +19,13 @@ const TIPO_OPTIONS = [
   { value: "Otro", label: "Otro" },
 ];
 
-const SEVERITY_OPTIONS = [
-  { value: "", label: "Todas" },
-  { value: "Baja", label: "Baja" },
-  { value: "Media", label: "Media" },
-  { value: "Alta", label: "Alta" },
-  { value: "Crítica", label: "Crítica" },
+const LEVEL_OPTIONS = [
+  { value: "", label: "Todos" },
+  { value: "G", label: "G" },
+  { value: "U", label: "U" },
+  { value: "R", label: "R" },
+  { value: "FR1", label: "FR1" },
+  { value: "FR0", label: "FR0" },
 ];
 
 const STATUS_OPTIONS = [
@@ -37,11 +41,12 @@ const STATUS_COLORS = {
   cerrado: "#43A047",
 };
 
-const SEVERITY_COLORS = {
-  Baja: "#43A047",
-  Media: "#FB8C00",
-  Alta: "#E53935",
-  Crítica: "#B71C1C",
+const LEVEL_COLORS = {
+  G: "#43A047",
+  U: "#FFB300",
+  R: "#FB8C00",
+  FR1: "#E53935",
+  FR0: "#B71C1C",
 };
 
 
@@ -52,13 +57,24 @@ const fmtDateInput = (d) => (d ? new Date(d).toISOString().split("T")[0] : "");
 
 /* ════════════════════════════════════════════════════════════ */
 const AdminIncidentes = () => {
+  const navigate = useNavigate();
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterSeverity, setFilterSeverity] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterPlant, setFilterPlant] = useState("");
+  const [filterLevel, setFilterLevel] = useState("");
+  const [filterArea, setFilterArea] = useState("");
+  const [filterCostCenter, setFilterCostCenter] = useState("");
+  const [filteredIncidents, setFilteredIncidents] = useState([]);
+
+  // Catalog states
+  const [plants, setPlants] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [costCenters, setCostCenters] = useState([]);
+
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -66,34 +82,105 @@ const AdminIncidentes = () => {
   const [detailId, setDetailId] = useState(null);
 
   /* fetch */
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await getAllIncidents();
-      setIncidents(Array.isArray(data) ? data : data.data || []);
+      const [incidentData, plantsData, areasData, usersData, costCentersRes] = await Promise.all([
+        getAllIncidents(),
+        getPlants().catch(() => []),
+        getAreas().catch(() => []),
+        getUsers().catch(() => []),
+        api.get("/get/cost-center").then(r => r.data).catch(() => [])
+      ]);
+      setIncidents(Array.isArray(incidentData) ? incidentData : incidentData.data || []);
+      setPlants(plantsData);
+      setAreas(areasData);
+      setUsers(usersData);
+      setCostCenters(costCentersRes);
     } catch {
-      setError("Error al cargar incidentes.");
+      setError("Error al cargar incidentes y catálogos.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* filter */
-  const filtered = useMemo(() => incidents.filter((i) => {
-    const s = search.toLowerCase();
-    const matchSearch = !search ||
-      String(i.id).includes(s) ||
-      i.location?.toLowerCase().includes(s) ||
-      i.description?.toLowerCase().includes(s) ||
-      i.id_area?.toLowerCase().includes(s);
-    return matchSearch &&
-      (!filterType || i.incident_type === filterType) &&
-      (!filterSeverity || i.severity === filterSeverity) &&
-      (!filterStatus || i.status === filterStatus);
-  }), [incidents, search, filterType, filterSeverity, filterStatus]);
+  /* Lookup helpers */
+  const getPlantName = (id) => {
+    if (!id) return "—";
+    const plant = plants.find((p) => String(p.id) === String(id));
+    return plant ? plant.name : `Planta ${id}`;
+  };
+
+  const getAreaName = (id) => {
+    if (!id) return "—";
+    const area = areas.find((a) => String(a.id) === String(id));
+    return area ? (area.nombre ?? area.name) : `Área ${id}`;
+  };
+
+  const getUserFullName = (id) => {
+    if (!id) return "—";
+    const user = users.find((u) => String(u.id) === String(id));
+    return user ? user.full_name : `Usuario ${id}`;
+  };
+
+  const getCostCenterName = (id) => {
+    if (!id) return "—";
+    const cc = costCenters.find((c) => String(c.id) === String(id));
+    return cc ? (cc.name ?? cc.nombre) : `CC ${id}`;
+  };
+
+  // Normalization helper for robust string comparison (ignores case and accents)
+  const normalizeStr = (str) =>
+    str
+      ? str
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+      : "";
+
+  /* filter effect */
+  useEffect(() => {
+    const s = normalizeStr(search);
+
+    const result = incidents.filter((i) => {
+      const plantName = normalizeStr(getPlantName(i.id_plant));
+      const areaName = normalizeStr(getAreaName(i.id_area));
+      const location = normalizeStr(i.location);
+      const description = normalizeStr(i.description);
+
+      const matchesSearch =
+        !search ||
+        String(i.id).includes(s) ||
+        (i.incident_folio && normalizeStr(i.incident_folio).includes(s)) ||
+        location.includes(s) ||
+        description.includes(s) ||
+        plantName.includes(s) ||
+        areaName.includes(s);
+
+      const matchesDate = !filterDate || (i.date && i.date.includes(filterDate)) || (i.incident_date && i.incident_date.includes(filterDate));
+      const matchesPlant = !filterPlant || String(i.id_plant) === String(filterPlant);
+      let incidentLevels = [];
+      if (Array.isArray(i.level)) {
+        incidentLevels = i.level.map(l => String(l).trim());
+      } else if (i.level) {
+        incidentLevels = String(i.level).split(',').map(l => l.trim());
+      } else if (i.severity) {
+        incidentLevels = String(i.severity).split(',').map(l => l.trim());
+      }
+      const matchesLevel = !filterLevel || incidentLevels.includes(String(filterLevel));
+      const matchesArea = !filterArea || String(i.id_area) === String(filterArea);
+      const matchesCostCenter = !filterCostCenter || String(i.id_cost_center) === String(filterCostCenter);
+
+      return matchesSearch && matchesDate && matchesPlant && matchesLevel && matchesArea && matchesCostCenter;
+    });
+
+    setFilteredIncidents(result);
+  }, [incidents, search, filterDate, filterPlant, filterLevel, filterArea, filterCostCenter, plants, areas]);
 
   /* detail modal */
   const detailItem = incidents.find((i) => (i.id || i.incident_folio) === detailId) || null;
@@ -173,7 +260,7 @@ const AdminIncidentes = () => {
   <div class="header-right">
     <strong>Folio: INC-${String(inc.id).padStart(4,"0")}</strong><br/>
     Generado: ${new Date().toLocaleString("es-MX")}<br/>
-    <span class="badge" style="background:${SEVERITY_COLORS[inc.severity]||'#888'};margin-top:4px">${inc.severity||"—"}</span>
+    <span class="badge" style="background:${LEVEL_COLORS[inc.level]||'#888'};margin-top:4px">${inc.level||"—"}</span>
     &nbsp;
     <span class="badge" style="background:${STATUS_COLORS[inc.status]||'#888'}">${inc.status||"—"}</span>
   </div>
@@ -245,32 +332,51 @@ const AdminIncidentes = () => {
         {successMsg && <div className="admin-success animate-in">{successMsg}</div>}
 
         {/* Filters */}
-        <div className="admin-filters animate-in animate-in-delay-1">
+        <div className="admin-filters animate-in animate-in-delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
           <div className="filter-group">
             <label htmlFor="ai-search">Buscar</label>
-            <input id="ai-search" type="text" placeholder="ID, área, descripción…"
+            <input id="ai-search" type="text" placeholder="ID, ubicación, desc…"
               value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="filter-group">
-            <label htmlFor="ai-filter-type">Tipo</label>
-            <select id="ai-filter-type" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-              {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <label htmlFor="ai-filter-date">Fecha</label>
+            <input id="ai-filter-date" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+          </div>
+          <div className="filter-group">
+            <label htmlFor="ai-filter-plant">Planta</label>
+            <select id="ai-filter-plant" value={filterPlant} onChange={(e) => setFilterPlant(e.target.value)}>
+              <option value="">Todas</option>
+              {plants.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
             </select>
           </div>
           <div className="filter-group">
-            <label htmlFor="ai-filter-sev">Gravedad</label>
-            <select id="ai-filter-sev" value={filterSeverity} onChange={(e) => setFilterSeverity(e.target.value)}>
-              {SEVERITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <label htmlFor="ai-filter-area">Área</label>
+            <select id="ai-filter-area" value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
+              <option value="">Todas</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>{a.name || a.nombre}</option>
+              ))}
             </select>
           </div>
           <div className="filter-group">
-            <label htmlFor="ai-filter-status">Estatus</label>
-            <select id="ai-filter-status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <label htmlFor="ai-filter-level">Nivel</label>
+            <select id="ai-filter-level" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+              {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-          <div className="filter-group filter-count">
-            <span className="count-badge">{filtered.length}</span>
+          <div className="filter-group">
+            <label htmlFor="ai-filter-cost">C. Costo</label>
+            <select id="ai-filter-cost" value={filterCostCenter} onChange={(e) => setFilterCostCenter(e.target.value)}>
+              <option value="">Todos</option>
+              {costCenters.map((cc) => (
+                <option key={cc.id} value={cc.id}>{cc.name || cc.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group filter-count" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span className="count-badge">{filteredIncidents.length}</span>
             <span>resultados</span>
           </div>
         </div>
@@ -295,26 +401,26 @@ const AdminIncidentes = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {filteredIncidents.length === 0 ? (
                   <tr><td colSpan="10" className="admin-empty">No se encontraron incidentes</td></tr>
-                ) : filtered.map((inc) => (
+                ) : filteredIncidents.map((inc) => (
                   <tr key={inc.id || inc.incident_folio} className={editingId === (inc.id || inc.incident_folio) ? "row-editing" : ""}>
                     <td className="cell-id">{inc.incident_folio || "—"}</td>
                     <td>{fmtDate(inc.date)}<br /><small className="ai-time">{inc.time}</small></td>
                     <td>
-                      <span className="ai-plant">{inc.id_plant || "—"}</span><br />
-                      <small>{inc.id_area || "—"}</small>
+                      <span className="ai-plant">{getPlantName(inc.id_plant)}</span><br />
+                      <small>{getAreaName(inc.id_area)}</small>
                     </td>
                     <td>
-                      <span className="status-badge" style={{ background: SEVERITY_COLORS[inc.level] || "#888" }}>
+                      <span className="status-badge" style={{ background: LEVEL_COLORS[inc.level] || "#888" }}>
                         {inc.level || "—"}
                       </span>
                     </td>
                     <td>{inc.location || "—"}</td>
                     <td>
-                      <small><strong>Resp:</strong> {inc.id_responsible_user || "—"}</small><br/>
-                      <small><strong>SV:</strong> {inc.id_general_sv || "—"}</small><br/>
-                      <small><strong>Jr:</strong> {inc.id_junior || "—"}</small>
+                      <small><strong>Resp:</strong> {getUserFullName(inc.id_responsible_user)}</small><br/>
+                      <small><strong>SV:</strong> {getUserFullName(inc.id_general_sv)}</small><br/>
+                      <small><strong>Jr:</strong> {getUserFullName(inc.id_junior)}</small>
                     </td>
                     <td>
                       <small><strong>Mec:</strong> {inc.incident_mechanism || "—"}</small><br/>
@@ -326,12 +432,24 @@ const AdminIncidentes = () => {
                         <small><strong>Causa:</strong> {inc.root_cause || "—"}</small>
                       </div>
                     </td>
-                    <td>{inc.id_cost_center || "—"}</td>
+                    <td>{getCostCenterName(inc.id_cost_center)}</td>
                     <td>
                       <div className="ai-action-btns">
                         <button className="btn-edit" onClick={() => setDetailId(inc.id || inc.incident_folio)} title="Ver detalle">👁️</button>
                         <button className="btn-edit" onClick={() => startEdit(inc)} title="Editar">✏️</button>
                         <button className="btn-edit ai-btn-print" onClick={() => printIncident(inc)} title="Generar formato">🖨️</button>
+                        <button
+                          className="btn-edit"
+                          style={{ backgroundColor: 'var(--primary-subtle)', color: 'var(--primary)', border: '1px solid rgba(200, 16, 46, 0.2)' }}
+                          onClick={() => {
+                            navigate("/llenadoFormatoIncidente", {
+                              state: { incident: inc },
+                            });
+                          }}
+                          title="Ver Formato"
+                        >
+                          📄 Formato
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -352,8 +470,8 @@ const AdminIncidentes = () => {
                 <p>{detailItem.location}</p>
               </div>
               <div className="ai-detail-badges">
-                <span className="status-badge" style={{ background: SEVERITY_COLORS[detailItem.severity] || "#888" }}>
-                  {detailItem.severity}
+                <span className="status-badge" style={{ background: LEVEL_COLORS[detailItem.level] || "#888" }}>
+                  {detailItem.level}
                 </span>
                 <span className="status-badge" style={{ background: STATUS_COLORS[detailItem.status] || "#888" }}>
                   {detailItem.status}
@@ -363,17 +481,17 @@ const AdminIncidentes = () => {
 
             <div className="ai-detail-grid">
               {[
-                ["Planta", detailItem.id_plant],
-                ["Área", detailItem.id_area],
+                ["Planta", getPlantName(detailItem.id_plant)],
+                ["Área", getAreaName(detailItem.id_area)],
                 ["Fecha", fmtDate(detailItem.date)],
                 ["Hora", detailItem.time],
                 ["Ubicación", detailItem.location],
                 ["Mecanismo", detailItem.incident_mechanism],
                 ["Lesión", detailItem.injury],
-                ["Responsable", detailItem.id_responsible_user || "—"],
-                ["SV General", detailItem.id_general_sv || "—"],
-                ["Junior", detailItem.id_junior || "—"],
-                ["Centro de Costo", detailItem.id_cost_center || "—"],
+                ["Responsable", getUserFullName(detailItem.id_responsible_user)],
+                ["SV General", getUserFullName(detailItem.id_general_sv)],
+                ["Junior", getUserFullName(detailItem.id_junior)],
+                ["Centro de Costo", getCostCenterName(detailItem.id_cost_center)],
               ].map(([label, value]) => (
                 <div key={label} className="ai-detail-field">
                   <span className="ai-detail-label">{label}</span>
@@ -418,9 +536,9 @@ const AdminIncidentes = () => {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Gravedad</label>
-                    <select name="severity" value={editForm.severity} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                      {SEVERITY_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <label>Nivel</label>
+                    <select name="level" value={editForm.level} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                      {LEVEL_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="form-group">

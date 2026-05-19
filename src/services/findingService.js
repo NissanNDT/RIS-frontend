@@ -21,6 +21,12 @@ export const getAreas = async () => {
   return res.data;
 };
 
+// GET users
+export const getUsers = async () => {
+  const res = await api.get("/get/users", authHeaders());
+  return res.data;
+};
+
 // GET all findings
 export const getAllFindings = async () => {
   const res = await api.get("/get/findings", authHeaders());

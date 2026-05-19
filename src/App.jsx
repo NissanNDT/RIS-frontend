@@ -9,6 +9,7 @@ import ReporteDeIncidentes from "./pages/ReporteDeIncidentes";
 import AdminIncidentes from "./pages/AdminIncidentes";
 import Auditorias from "./pages/Auditorias";
 import DetalleAuditoria from "./pages/DetalleAuditoria";
+import LlenadoFormatoIncidente from "./pages/LlenadoFormatoIncidente";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/adminIncidentes" element={<AdminIncidentes />} />
         <Route path="/auditorias" element={<Auditorias />} />
         <Route path="/auditorias/:id" element={<DetalleAuditoria />} />
+        <Route path="/llenadoFormatoIncidente" element={<LlenadoFormatoIncidente />} />
         {/* demás rutas */}
       </Routes>
     </BrowserRouter>

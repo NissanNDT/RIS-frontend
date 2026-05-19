@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { FaUser, FaPhone, FaMapMarkerAlt, FaInfoCircle } from "react-icons/fa";
 import "../App.css";
 
 const contacts = {
@@ -81,14 +82,26 @@ const Contact = () => {
         <div className="popup" onClick={handleOutsideClick}>
           <div className="popup-content">
             <h2>{selectedArea.title}</h2>
-            {selectedArea.contacts.map((contact, index) => (
-              <div key={index} className="popup-grid-item">
-                <p><strong>{contact.area}</strong></p>
-                <p><strong>{contact.name}</strong></p>
-                <p>{contact.phone}</p>
-                <p>{contact.description}</p>
-              </div>
-            ))}
+            <div className="popup-grid">
+              {selectedArea.contacts.map((contact, index) => (
+                <div key={index} className="popup-grid-item">
+                  <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                    <FaMapMarkerAlt /> <strong>{contact.area}</strong>
+                  </p>
+                  <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                    <FaUser /> <strong>{contact.name}</strong>
+                  </p>
+                  <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                    <FaPhone /> {contact.phone}
+                  </p>
+                  {contact.description && (
+                    <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      <FaInfoCircle /> {contact.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

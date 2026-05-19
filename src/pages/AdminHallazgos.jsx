@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getAllFindings, updateFinding } from "../services/findingService";
+import { getAllFindings, updateFinding, getPlants, getAreas, getUsers } from "../services/findingService";
 import "../App.css";
 
 const CATEGORY_OPTIONS = [
@@ -45,14 +45,24 @@ const AdminHallazgos = () => {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterLevel, setFilterLevel] = useState("");
+  const [filterPlant, setFilterPlant] = useState("");
+  const [filterArea, setFilterArea] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [filteredFindings, setFilteredFindings] = useState([]);
 
-  // Fetch findings
+  // Catalog states
+  const [plants, setPlants] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  // Fetch findings and catalogs
   useEffect(() => {
     fetchFindings();
+    fetchCatalogs();
   }, []);
 
   const fetchFindings = async () => {
@@ -71,20 +81,119 @@ const AdminHallazgos = () => {
     }
   };
 
-  // Filtered findings
-  const filtered = useMemo(() => {
-    return findings.filter((f) => {
+  const fetchCatalogs = async () => {
+    try {
+      const [plantsData, areasData, usersData] = await Promise.all([
+        getPlants(),
+        getAreas(),
+        getUsers(),
+      ]);
+      setPlants(Array.isArray(plantsData) ? plantsData : []);
+      setAreas(Array.isArray(areasData) ? areasData : []);
+      setUsers(Array.isArray(usersData) ? usersData : []);
+    } catch (err) {
+      console.error("Error fetching catalogs:", err);
+    }
+  };
+
+  // Name mapping helpers
+  const getPlantName = (id) => {
+    if (!id) return "—";
+    const plant = plants.find((p) => String(p.id) === String(id));
+    return plant ? plant.name : `Planta ${id}`;
+  };
+
+  const getAreaName = (id) => {
+    if (!id) return "—";
+    const area = areas.find((a) => String(a.id) === String(id));
+    return area ? (area.nombre ?? area.name) : `Área ${id}`;
+  };
+
+  const getUserFullName = (id) => {
+    if (!id) return "—";
+    const user = users.find((u) => String(u.id) === String(id));
+    return user ? user.full_name : `Usuario ${id}`;
+  };
+
+  // Normalization helper for robust string comparison (ignores case and accents)
+  const normalizeStr = (str) =>
+    str
+      ? str
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+      : "";
+
+  // Extract unique values for filters from findings
+  const uniqueLevels = useMemo(() => [...new Set(findings.map((f) => f.level).filter(Boolean))], [findings]);
+  
+  const uniquePlants = useMemo(() => {
+    const ids = [...new Set(findings.map((f) => f.id_plant).filter(Boolean))];
+    return ids.map(id => ({
+      id,
+      name: getPlantName(id)
+    }));
+  }, [findings, plants]);
+
+  const uniqueAreas = useMemo(() => {
+    const ids = [...new Set(findings.map((f) => f.id_area).filter(Boolean))];
+    return ids.map(id => ({
+      id,
+      name: getAreaName(id)
+    }));
+  }, [findings, areas]);
+
+  // Effect to copy findings to filteredFindings when the raw findings change
+  useEffect(() => {
+    setFilteredFindings(findings);
+  }, [findings]);
+
+  // Filtered findings using state and useEffect
+  useEffect(() => {
+    const newFiltered = findings.filter((f) => {
       const matchSearch =
         !search ||
         f.description?.toLowerCase().includes(search.toLowerCase()) ||
         f.location?.toLowerCase().includes(search.toLowerCase()) ||
         String(f.id).includes(search);
+      
       const matchCategory =
-        !filterCategory || f.finding_category === filterCategory;
-      const matchStatus = !filterStatus || f.status === filterStatus;
-      return matchSearch && matchCategory && matchStatus;
+        !filterCategory ||
+        normalizeStr(f.finding_category) === normalizeStr(filterCategory);
+      
+      const matchStatus =
+        !filterStatus ||
+        normalizeStr(f.status) === normalizeStr(filterStatus);
+      
+      const matchLevel = !filterLevel || f.level === filterLevel;
+      const matchPlant = !filterPlant || String(f.id_plant) === String(filterPlant);
+      const matchArea = !filterArea || String(f.id_area) === String(filterArea);
+      
+      return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea;
     });
-  }, [findings, search, filterCategory, filterStatus]);
+    setFilteredFindings(newFiltered);
+  }, [findings, search, filterCategory, filterStatus, filterLevel, filterPlant, filterArea]);
+
+  // Map value to backend category format
+  const mapCategoryToBackend = (val) => {
+    if (!val) return null;
+    const lower = val.toLowerCase();
+    if (lower.includes("acto")) return "Acto Inseguro";
+    if (lower.includes("condicion insegura")) return "Condición Insegura";
+    if (lower.includes("condicion ng")) return "Condición NG";
+    return val;
+  };
+
+  // Map value to backend status format
+  const mapStatusToBackend = (val) => {
+    if (!val) return null;
+    const lower = val.toLowerCase();
+    if (lower === "abierto") return "Abierto";
+    if (lower.includes("revision")) return "En revisión";
+    if (lower === "cerrado") return "Cerrado";
+    if (lower === "rechazado") return "Rechazado";
+    return val;
+  };
 
   // Edit handlers
   const startEdit = (finding) => {
@@ -94,8 +203,9 @@ const AdminHallazgos = () => {
       location: finding.location || "",
       id_area: finding.id_area || "",
       id_plant: finding.id_plant || "",
-      finding_category: finding.finding_category || "",
-      status: finding.status || "",
+      id_responsible_user: finding.id_responsible_user || "",
+      finding_category: (finding.finding_category || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+      status: (finding.status || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
       verification_date: formatDateInput(finding.verification_date),
       corrective_action: finding.corrective_action || "",
       id_audit: finding.id_audit || "",
@@ -122,6 +232,9 @@ const AdminHallazgos = () => {
         ...editForm,
         id_area: Number(editForm.id_area) || null,
         id_plant: Number(editForm.id_plant) || null,
+        id_responsible_user: editForm.id_responsible_user ? Number(editForm.id_responsible_user) : null,
+        finding_category: mapCategoryToBackend(editForm.finding_category),
+        status: mapStatusToBackend(editForm.status),
         id_audit: editForm.id_audit ? Number(editForm.id_audit) : null,
         verification_date: editForm.verification_date || null,
         conclusion_date: editForm.conclusion_date || null,
@@ -189,8 +302,47 @@ const AdminHallazgos = () => {
               ))}
             </select>
           </div>
+          <div className="filter-group">
+            <label htmlFor="filter-level">Nivel</label>
+            <select
+              id="filter-level"
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {uniqueLevels.map((lvl) => (
+                <option key={lvl} value={lvl}>{lvl}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="filter-plant">Planta</label>
+            <select
+              id="filter-plant"
+              value={filterPlant}
+              onChange={(e) => setFilterPlant(e.target.value)}
+            >
+              <option value="">Todas</option>
+              {uniquePlants.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="filter-area">Área</label>
+            <select
+              id="filter-area"
+              value={filterArea}
+              onChange={(e) => setFilterArea(e.target.value)}
+            >
+              <option value="">Todas</option>
+              {uniqueAreas.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="filter-group filter-count">
-            <span className="count-badge">{filtered.length}</span>
+            <span className="count-badge">{filteredFindings.length}</span>
             <span>resultados</span>
           </div>
         </div>
@@ -214,6 +366,7 @@ const AdminHallazgos = () => {
                   <th>Estatus</th>
                   <th>Planta</th>
                   <th>Área</th>
+                  <th>Responsable</th>
                   <th>Verificación</th>
                   <th>Acción Correctiva</th>
                   <th>Auditoría</th>
@@ -222,17 +375,21 @@ const AdminHallazgos = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {filteredFindings.length === 0 ? (
                   <tr>
-                    <td colSpan="12" className="admin-empty">
+                    <td colSpan="13" className="admin-empty">
                       No se encontraron hallazgos
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((f) => (
+                  filteredFindings.map((f) => (
                     <tr key={f.id} className={editingId === f.id ? "row-editing" : ""}>
                       <td className="cell-id">{f.id}</td>
-                      <td className="cell-desc">{f.description}</td>
+                      <td className="cell-desc">
+                        <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                          {f.description}
+                        </div>
+                      </td>
                       <td>{f.location}</td>
                       <td>
                         <span className="category-badge">
@@ -244,17 +401,20 @@ const AdminHallazgos = () => {
                           className="status-badge"
                           style={{
                             background:
-                              STATUS_COLORS[f.status] || "#888",
+                              STATUS_COLORS[f.status?.toLowerCase()] || "#888",
                           }}
                         >
                           {f.status}
                         </span>
                       </td>
-                      <td>{f.id_plant}</td>
-                      <td>{f.id_area}</td>
+                      <td>{getPlantName(f.id_plant)}</td>
+                      <td>{getAreaName(f.id_area)}</td>
+                      <td>{getUserFullName(f.id_responsible_user)}</td>
                       <td>{formatDate(f.verification_date)}</td>
                       <td className="cell-desc">
-                        {f.corrective_action || "—"}
+                        <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                          {f.corrective_action || "—"}
+                        </div>
                       </td>
                       <td>{f.id_audit || "—"}</td>
                       <td>{formatDate(f.conclusion_date)}</td>
@@ -337,23 +497,51 @@ const AdminHallazgos = () => {
                   </div>
                   <div className="form-group">
                     <label>Planta</label>
-                    <input
+                    <select
                       name="id_plant"
-                      type="number"
                       value={editForm.id_plant}
                       onChange={handleEditChange}
                       style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
-                    />
+                    >
+                      <option value="">Seleccione una planta</option>
+                      {plants.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>Área</label>
-                    <input
+                    <select
                       name="id_area"
-                      type="number"
                       value={editForm.id_area}
                       onChange={handleEditChange}
                       style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
-                    />
+                    >
+                      <option value="">Seleccione un área</option>
+                      {areas.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.nombre ?? a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Responsable</label>
+                    <select
+                      name="id_responsible_user"
+                      value={editForm.id_responsible_user}
+                      onChange={handleEditChange}
+                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
+                    >
+                      <option value="">Seleccione un responsable</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.full_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>ID Auditoría</label>

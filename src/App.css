@@ -596,8 +596,8 @@
   border: 1px solid var(--border-default);
   box-shadow: var(--shadow-lg);
   text-align: center;
-  width: 90%;
-  max-width: 500px;
+  width: 95%;
+  max-width: 800px;
   animation: scaleIn 0.3s var(--ease-spring);
 }
 
@@ -636,9 +636,15 @@
 
 .popup-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-top: 20px;
+}
+
+@media (min-width: 768px) {
+  .popup-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .popup-grid-item {

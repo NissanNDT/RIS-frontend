@@ -208,9 +208,11 @@ const ReporteDeHallazgos = () => {
           </div>
         )}
 
-        <button type="submit" className="submit-button" disabled={loading}>
-          {loading ? "ENVIANDO..." : "ENVIAR"}
-        </button>
+        <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+          <button type="submit" className="submit-button" disabled={loading}>
+            {loading ? "ENVIANDO..." : "ENVIAR"}
+          </button>
+        </div>
       </form>
     </div>
   );
