@@ -14,7 +14,6 @@ const ReporteDeHallazgos = () => {
 
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
-  const [filteredAreas, setFilteredAreas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
 
@@ -36,20 +35,7 @@ const ReporteDeHallazgos = () => {
     fetchData();
   }, []);
 
-  // Filter areas whenever selected plant changes
-  useEffect(() => {
-    if (formData.plant_id) {
-      const related = areas.filter(
-        (area) =>
-          String(area.id_plant ?? area.plant_id ?? area.id_planta) === String(formData.plant_id)
-      );
-      setFilteredAreas(related.length ? related : areas); // fallback: show all if no FK match
-    } else {
-      setFilteredAreas([]);
-    }
-    // Reset selected area when plant changes
-    setFormData((prev) => ({ ...prev, area_id: "" }));
-  }, [formData.plant_id, areas]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -126,7 +112,7 @@ const ReporteDeHallazgos = () => {
             </select>
           </label>
 
-          {/* Área (filtrada según planta seleccionada) */}
+          {/* Área */}
           <label>
             Área
             <select
@@ -134,12 +120,9 @@ const ReporteDeHallazgos = () => {
               value={formData.area_id}
               onChange={handleChange}
               required
-              disabled={!formData.plant_id}
             >
-              <option value="">
-                {formData.plant_id ? "Selecciona un área" : "Primero elige una planta"}
-              </option>
-              {filteredAreas.map((area) => (
+              <option value="">Selecciona un área</option>
+              {areas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.nombre ?? area.name}
                 </option>
