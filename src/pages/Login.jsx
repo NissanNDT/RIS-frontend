@@ -38,9 +38,16 @@ const Login = () => {
 
       // ✅ SOLO GUARDAR USUARIO
       localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // ✅ GUARDAR ROL
+      if (data.user && data.user.role) {
+        localStorage.setItem("role", data.user.role);
+      }
 
-      // ✅ OPCIONAL: limpiar residuos viejos
-      localStorage.removeItem("token");
+      // ✅ GUARDAR TOKEN
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
 
       // ✅ Redirigir
       navigate("/");

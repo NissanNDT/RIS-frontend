@@ -47,7 +47,7 @@ export const getFindingsByAuditId = async (id) => {
 
 // POST create finding (supports FormData for image upload)
 export const createFinding = async (findingData) => {
-  const config = { ...authHeaders(), withCredentials: true };
+  const config = { ...authHeaders() };
   const res = await api.post("/findings", findingData, config);
   return res.data;
 };

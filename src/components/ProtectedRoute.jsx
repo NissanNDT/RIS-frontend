@@ -1,25 +1,30 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 /**
  * ProtectedRoute
  * Bloquea el acceso a rutas privadas si no hay sesión activa.
- * La sesión se determina por la existencia del objeto "user" en localStorage,
- * el cual es guardado por Login.jsx tras un login exitoso.
- *
- * Rutas públicas (no requieren este wrapper):
- *  - /           (Homepage)
- *  - /contact    (Contactos)
- *  - /login      (Login)
  */
 const ProtectedRoute = ({ children }) => {
-  const user = localStorage.getItem("user");
+  const location = useLocation();
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
 
-  if (!user) {
+  if (!token) {
     // Sin sesión → redirigir al login
     return <Navigate to="/login" replace />;
   }
 
-  // Con sesión → renderizar la página solicitada
+  // Si el rol es General, restringir rutas
+  if (role === "General") {
+    // Estas son las rutas públicas y permitidas según requerimiento
+    const allowedPaths = ["/", "/contact", "/reporteDeHallazgo"];
+    if (!allowedPaths.includes(location.pathname)) {
+      // Intenta acceder a una ruta no permitida -> redirigir a inicio
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  // Con sesión y permisos → renderizar la página solicitada
   return children;
 };
 

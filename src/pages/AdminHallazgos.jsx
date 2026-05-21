@@ -54,6 +54,11 @@ const AdminHallazgos = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [filteredFindings, setFilteredFindings] = useState([]);
 
+  // Role and UserId
+  const role = localStorage.getItem("role");
+  const storedUser = localStorage.getItem("user");
+  const userId = storedUser ? JSON.parse(storedUser).id : null;
+
   // Catalog states
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -169,7 +174,9 @@ const AdminHallazgos = () => {
       const matchPlant = !filterPlant || String(f.id_plant) === String(filterPlant);
       const matchArea = !filterArea || String(f.id_area) === String(filterArea);
       
-      return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea;
+      const matchRole = role === "Supervisor" ? String(f.id_responsible_user) === String(userId) : true;
+      
+      return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea && matchRole;
     });
     setFilteredFindings(newFiltered);
   }, [findings, search, filterCategory, filterStatus, filterLevel, filterPlant, filterArea]);
@@ -196,6 +203,14 @@ const AdminHallazgos = () => {
   };
 
   // Edit handlers
+  const changeFindingStatus = (id, newStatus) => {
+    setFindings((prevFindings) =>
+      prevFindings.map((f) =>
+        f.id === id ? { ...f, status: newStatus } : f
+      )
+    );
+  };
+
   const startEdit = (finding) => {
     setEditingId(finding.id);
     setEditForm({
@@ -371,7 +386,9 @@ const AdminHallazgos = () => {
                   <th>Acción Correctiva</th>
                   <th>Auditoría</th>
                   <th>Conclusión</th>
-                  <th>Acciones</th>
+                  {role === "Supervisor" && <th>Enviar a revisión</th>}
+                  {role === "Security" && <th>Acciones</th>}
+                  <th>Editar</th>
                 </tr>
               </thead>
               <tbody>
@@ -418,6 +435,37 @@ const AdminHallazgos = () => {
                       </td>
                       <td>{f.id_audit || "—"}</td>
                       <td>{formatDate(f.conclusion_date)}</td>
+                      {role === "Supervisor" && (
+                        <td>
+                          {f.status?.toLowerCase() === "abierto" && (
+                            <button
+                              className="btn-action"
+                              style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#FB8C00', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              onClick={() => changeFindingStatus(f.id, "En revisión")}
+                            >
+                              Enviar a revisión
+                            </button>
+                          )}
+                        </td>
+                      )}
+                      {role === "Security" && (
+                        <td style={{ display: 'flex', gap: '5px' }}>
+                          <button
+                            className="btn-close-finding"
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#43A047', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => changeFindingStatus(f.id, "Cerrado")}
+                          >
+                            Cerrar
+                          </button>
+                          <button
+                            className="btn-reject"
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#E53935', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => changeFindingStatus(f.id, "Rechazado")}
+                          >
+                            Rechazar
+                          </button>
+                        </td>
+                      )}
                       <td>
                         <button
                           className="btn-edit"
