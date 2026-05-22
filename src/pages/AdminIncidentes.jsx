@@ -74,6 +74,7 @@ const AdminIncidentes = () => {
   const [areas, setAreas] = useState([]);
   const [users, setUsers] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [svByArea, setSvByArea] = useState([]);
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -82,26 +83,28 @@ const AdminIncidentes = () => {
   const [detailId, setDetailId] = useState(null);
 
   /* fetch */
-  useEffect(() => { 
-    fetchData(); 
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
-      const [incidentData, plantsData, areasData, usersData, costCentersRes] = await Promise.all([
+      const [incidentData, plantsData, areasData, usersData, costCentersRes, svByAreaRes] = await Promise.all([
         getAllIncidents(),
         getPlants().catch(() => []),
         getAreas().catch(() => []),
         getUsers().catch(() => []),
-        api.get("/get/cost-center").then(r => r.data).catch(() => [])
+        api.get("/get/cost-center").then(r => r.data).catch(() => []),
+        api.get("/get/sv-by-area").then(r => r.data).catch(() => [])
       ]);
       setIncidents(Array.isArray(incidentData) ? incidentData : incidentData.data || []);
       setPlants(plantsData);
       setAreas(areasData);
       setUsers(usersData);
       setCostCenters(costCentersRes);
+      setSvByArea(Array.isArray(svByAreaRes) ? svByAreaRes : []);
     } catch {
       setError("Error al cargar incidentes y catálogos.");
     } finally {
@@ -138,14 +141,27 @@ const AdminIncidentes = () => {
   const normalizeStr = (str) =>
     str
       ? str
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
       : "";
 
   /* filter effect */
   useEffect(() => {
     const s = normalizeStr(search);
+    const role = localStorage.getItem("role");
+    const storedUser = localStorage.getItem("user");
+    const userId = storedUser ? JSON.parse(storedUser).id : null;
+
+    // Obtener las áreas asignadas al supervisor desde la tabla sv_by_area
+    let supervisorAreas = new Set();
+    if (role === "Supervisor" && userId) {
+      svByArea.forEach(entry => {
+        if (String(entry.id_user) === String(userId) && entry.id_area) {
+          supervisorAreas.add(String(entry.id_area));
+        }
+      });
+    }
 
     const result = incidents.filter((i) => {
       const plantName = normalizeStr(getPlantName(i.id_plant));
@@ -176,11 +192,17 @@ const AdminIncidentes = () => {
       const matchesArea = !filterArea || String(i.id_area) === String(filterArea);
       const matchesCostCenter = !filterCostCenter || String(i.id_cost_center) === String(filterCostCenter);
 
-      return matchesSearch && matchesDate && matchesPlant && matchesLevel && matchesArea && matchesCostCenter;
+      // Control por roles: Supervisor solo ve sus áreas asignadas; Security/Admin ven todo
+      let matchesRole = true;
+      if (role === "Supervisor") {
+        matchesRole = supervisorAreas.has(String(i.id_area));
+      }
+
+      return matchesSearch && matchesDate && matchesPlant && matchesLevel && matchesArea && matchesCostCenter && matchesRole;
     });
 
     setFilteredIncidents(result);
-  }, [incidents, search, filterDate, filterPlant, filterLevel, filterArea, filterCostCenter, plants, areas]);
+  }, [incidents, search, filterDate, filterPlant, filterLevel, filterArea, filterCostCenter, plants, areas, svByArea]);
 
   /* detail modal */
   const detailItem = incidents.find((i) => (i.id || i.incident_folio) === detailId) || null;
@@ -258,44 +280,44 @@ const AdminIncidentes = () => {
     <p>Sistema RIS — Nissan Motor de México</p>
   </div>
   <div class="header-right">
-    <strong>Folio: INC-${String(inc.id).padStart(4,"0")}</strong><br/>
+    <strong>Folio: INC-${String(inc.id).padStart(4, "0")}</strong><br/>
     Generado: ${new Date().toLocaleString("es-MX")}<br/>
-    <span class="badge" style="background:${LEVEL_COLORS[inc.level]||'#888'};margin-top:4px">${inc.level||"—"}</span>
+    <span class="badge" style="background:${LEVEL_COLORS[inc.level] || '#888'};margin-top:4px">${inc.level || "—"}</span>
     &nbsp;
-    <span class="badge" style="background:${STATUS_COLORS[inc.status]||'#888'}">${inc.status||"—"}</span>
+    <span class="badge" style="background:${STATUS_COLORS[inc.status] || '#888'}">${inc.status || "—"}</span>
   </div>
 </div>
 
 <div class="section">
   <div class="section-title">📍 Identificación del Incidente</div>
   <div class="grid">
-    <div class="field"><div class="field-label">Planta</div><div class="field-value">${inc.id_plant||"—"}</div></div>
-    <div class="field"><div class="field-label">Área</div><div class="field-value">${inc.id_area||"—"}</div></div>
-    <div class="field"><div class="field-label">Turno</div><div class="field-value">${inc.shift||"—"}</div></div>
-    <div class="field"><div class="field-label">Fecha</div><div class="field-value">${inc.incident_date||"—"}</div></div>
-    <div class="field"><div class="field-label">Hora</div><div class="field-value">${inc.incident_time||"—"}</div></div>
-    <div class="field"><div class="field-label">Lugar / Equipo</div><div class="field-value">${inc.location||"—"}</div></div>
+    <div class="field"><div class="field-label">Planta</div><div class="field-value">${inc.id_plant || "—"}</div></div>
+    <div class="field"><div class="field-label">Área</div><div class="field-value">${inc.id_area || "—"}</div></div>
+    <div class="field"><div class="field-label">Turno</div><div class="field-value">${inc.shift || "—"}</div></div>
+    <div class="field"><div class="field-label">Fecha</div><div class="field-value">${inc.incident_date || "—"}</div></div>
+    <div class="field"><div class="field-label">Hora</div><div class="field-value">${inc.incident_time || "—"}</div></div>
+    <div class="field"><div class="field-label">Lugar / Equipo</div><div class="field-value">${inc.location || "—"}</div></div>
   </div>
 </div>
 
 <div class="section">
   <div class="section-title">📋 Descripción del Incidente</div>
   <div class="grid">
-    <div class="field"><div class="field-label">Tipo de Incidente</div><div class="field-value">${inc.incident_type||"—"}</div></div>
-    <div class="field"><div class="field-label">Causa Inmediata</div><div class="field-value">${inc.immediate_cause||"—"}</div></div>
-    <div class="field"><div class="field-label">Parte del Cuerpo</div><div class="field-value">${inc.body_part_affected||"—"}</div></div>
-    <div class="field full"><div class="field-label">Descripción Detallada</div><div class="field-value">${inc.description||"—"}</div></div>
-    <div class="field full"><div class="field-label">Testigos</div><div class="field-value">${inc.witnesses||"—"}</div></div>
+    <div class="field"><div class="field-label">Tipo de Incidente</div><div class="field-value">${inc.incident_type || "—"}</div></div>
+    <div class="field"><div class="field-label">Causa Inmediata</div><div class="field-value">${inc.immediate_cause || "—"}</div></div>
+    <div class="field"><div class="field-label">Parte del Cuerpo</div><div class="field-value">${inc.body_part_affected || "—"}</div></div>
+    <div class="field full"><div class="field-label">Descripción Detallada</div><div class="field-value">${inc.description || "—"}</div></div>
+    <div class="field full"><div class="field-label">Testigos</div><div class="field-value">${inc.witnesses || "—"}</div></div>
   </div>
 </div>
 
 <div class="section">
   <div class="section-title">🛠️ Respuesta y Seguimiento</div>
   <div class="grid grid-2">
-    <div class="field"><div class="field-label">Acciones Inmediatas</div><div class="field-value">${inc.immediate_actions||"—"}</div></div>
-    <div class="field"><div class="field-label">Acciones Correctivas / Preventivas</div><div class="field-value">${inc.corrective_actions||"—"}</div></div>
-    <div class="field"><div class="field-label">Responsable de Seguimiento</div><div class="field-value">${inc.id_responsible_user||"—"}</div></div>
-    <div class="field"><div class="field-label">Fecha Límite de Seguimiento</div><div class="field-value">${inc.follow_up_date||"—"}</div></div>
+    <div class="field"><div class="field-label">Acciones Inmediatas</div><div class="field-value">${inc.immediate_actions || "—"}</div></div>
+    <div class="field"><div class="field-label">Acciones Correctivas / Preventivas</div><div class="field-value">${inc.corrective_actions || "—"}</div></div>
+    <div class="field"><div class="field-label">Responsable de Seguimiento</div><div class="field-value">${inc.id_responsible_user || "—"}</div></div>
+    <div class="field"><div class="field-label">Fecha Límite de Seguimiento</div><div class="field-value">${inc.follow_up_date || "—"}</div></div>
   </div>
 </div>
 
@@ -418,17 +440,17 @@ const AdminIncidentes = () => {
                     </td>
                     <td>{inc.location || "—"}</td>
                     <td>
-                      <small><strong>Resp:</strong> {getUserFullName(inc.id_responsible_user)}</small><br/>
-                      <small><strong>SV:</strong> {getUserFullName(inc.id_general_sv)}</small><br/>
+                      <small><strong>Resp:</strong> {getUserFullName(inc.id_responsible_user)}</small><br />
+                      <small><strong>SV:</strong> {getUserFullName(inc.id_general_sv)}</small><br />
                       <small><strong>Jr:</strong> {getUserFullName(inc.id_junior)}</small>
                     </td>
                     <td>
-                      <small><strong>Mec:</strong> {inc.incident_mechanism || "—"}</small><br/>
+                      <small><strong>Mec:</strong> {inc.incident_mechanism || "—"}</small><br />
                       <small><strong>Les:</strong> {inc.injury || "—"}</small>
                     </td>
                     <td className="cell-desc">
                       <div style={{ maxHeight: '60px', overflowY: 'auto' }}>
-                        <small><strong>Desc:</strong> {inc.description || "—"}</small><br/>
+                        <small><strong>Desc:</strong> {inc.description || "—"}</small><br />
                         <small><strong>Causa:</strong> {inc.root_cause || "—"}</small>
                       </div>
                     </td>

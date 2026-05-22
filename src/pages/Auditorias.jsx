@@ -6,6 +6,7 @@ import {
   updateAudit
 } from "../services/auditService";
 import { getPlants, getAreas } from "../services/findingService";
+import api from "../api/axios";
 import "../styles/Auditorias.css";
 
 
@@ -16,7 +17,16 @@ const Auditorias = () => {
   const [loading, setLoading] = useState(true);
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [svByArea, setSvByArea] = useState([]);
   const [error, setError] = useState("");
+
+  // Role-based access control
+  const role = localStorage.getItem("role");
+  const storedUser = localStorage.getItem("user");
+  const userId = storedUser ? JSON.parse(storedUser).id : null;
+
+  // Supervisor and Admin can only view — no editing allowed
+  const canEdit = role !== "Supervisor" && role !== "Admin";
 
   // Filter states
   const [search, setSearch] = useState("");
@@ -46,14 +56,16 @@ const Auditorias = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [auditsData, plantsData, areasData] = await Promise.all([
+      const [auditsData, plantsData, areasData, svByAreaRes] = await Promise.all([
         getAllAudits(),
         getPlants(),
-        getAreas()
+        getAreas(),
+        api.get("/get/sv-by-area").then(r => r.data).catch(() => [])
       ]);
       setAudits(auditsData || []);
       setPlants(plantsData || []);
       setAreas(areasData || []);
+      setSvByArea(Array.isArray(svByAreaRes) ? svByAreaRes : []);
     } catch (err) {
       console.error("Error fetching data:", err);
       setAudits([]);
@@ -64,14 +76,31 @@ const Auditorias = () => {
   };
 
   const filteredAudits = useMemo(() => {
+    // Build supervisor area set for role-based filtering
+    let supervisorAreas = new Set();
+    if (role === "Supervisor" && userId) {
+      svByArea.forEach(entry => {
+        if (String(entry.id_user) === String(userId) && entry.id_area) {
+          supervisorAreas.add(String(entry.id_area));
+        }
+      });
+    }
+
     return audits.filter(a => {
       const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.audit_folio.toLowerCase().includes(search.toLowerCase());
       const matchType = !filterType || a.type === filterType;
       const matchPlant = !filterPlant || String(a.id_plant) === String(filterPlant);
       const matchArea = !filterArea || String(a.id_area) === String(filterArea);
-      return matchSearch && matchType && matchPlant && matchArea;
+
+      // Role-based filter: Supervisor only sees audits in their assigned areas
+      let matchRole = true;
+      if (role === "Supervisor") {
+        matchRole = supervisorAreas.has(String(a.id_area));
+      }
+
+      return matchSearch && matchType && matchPlant && matchArea && matchRole;
     });
-  }, [audits, search, filterType, filterPlant, filterArea]);
+  }, [audits, search, filterType, filterPlant, filterArea, role, userId, svByArea]);
 
   const handleAuditChange = (e) => {
     const { name, value } = e.target;
@@ -158,14 +187,16 @@ const Auditorias = () => {
       <div className="auditorias-container">
         <div className="auditorias-header animate-in">
           <h1>Auditorías</h1>
-          <button className="btn-new-audit" onClick={() => {
-            setIsEditing(false);
-            setEditingId(null);
-            setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
-            setShowNewAuditModal(true);
-          }}>
-            + Nueva Auditoría
-          </button>
+          {canEdit && (
+            <button className="btn-new-audit" onClick={() => {
+              setIsEditing(false);
+              setEditingId(null);
+              setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
+              setShowNewAuditModal(true);
+            }}>
+              + Nueva Auditoría
+            </button>
+          )}
         </div>
 
         {/* Filters Bar */}
@@ -236,9 +267,11 @@ const Auditorias = () => {
                   <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); navigate(`/auditorias/${audit.id}`); }}>
                     👁️ Ver Detalle
                   </button>
-                  <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); handleEdit(audit); }}>
-                    ✏️ Editar
-                  </button>
+                  {canEdit && (
+                    <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); handleEdit(audit); }}>
+                      ✏️ Editar
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -266,18 +299,19 @@ const Auditorias = () => {
                       onChange={handleAuditChange} 
                       placeholder="Ej. Auditoría de Seguridad Trimestral"
                       required 
+                      disabled={!canEdit}
                     />
                   </div>
                   <div className="form-group">
                     <label>Planta</label>
-                    <select name="id_plant" value={auditForm.id_plant} onChange={handleAuditChange} required>
+                    <select name="id_plant" value={auditForm.id_plant} onChange={handleAuditChange} required disabled={!canEdit}>
                       <option value="">Selecciona Planta</option>
                       {plants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Área</label>
-                    <select name="id_area" value={auditForm.id_area} onChange={handleAuditChange} required>
+                    <select name="id_area" value={auditForm.id_area} onChange={handleAuditChange} required disabled={!canEdit}>
                       <option value="">Selecciona Área</option>
                       {areas
                         .filter(a => !auditForm.id_plant || !a.id_plant || String(a.id_plant) === String(auditForm.id_plant))
@@ -287,7 +321,7 @@ const Auditorias = () => {
                   </div>
                   <div className="form-group">
                     <label>Tipo</label>
-                    <select name="type" value={auditForm.type} onChange={handleAuditChange} required>
+                    <select name="type" value={auditForm.type} onChange={handleAuditChange} required disabled={!canEdit}>
                       <option value="SES">SES</option>
                       <option value="FPES">FPES</option>
                     </select>
@@ -296,7 +330,7 @@ const Auditorias = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={() => setShowNewAuditModal(false)}>Cancelar</button>
-                <button type="submit" className="btn-save" disabled={saving}>
+                <button type="submit" className="btn-save" disabled={saving || !canEdit}>
                   {saving ? "Guardando..." : isEditing ? "Actualizar Auditoría" : "Crear Auditoría"}
                 </button>
               </div>
