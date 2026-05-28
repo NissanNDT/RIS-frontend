@@ -41,6 +41,8 @@ const DetalleAuditoria = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  const role = localStorage.getItem("role") || "";
+  
   const [audit, setAudit] = useState(null);
   const [findings, setFindings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +129,108 @@ const DetalleAuditoria = () => {
     } catch (err) {
       console.error("Error updating finding status:", err);
     }
+  };
+
+  const printAudit = () => {
+    if (!audit) return;
+    const plantName = plants.find(p => p.id === audit.id_plant)?.name || audit.id_plant;
+    const areaName = areas.find(a => a.id === audit.id_area)?.name || audit.id_area;
+    const responsibleName = getUserFullName(audit.id_responsible_user || audit.id_audit_user);
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Formato de Auditoría — ${audit.audit_folio || audit.id}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;font-size:11pt;color:#111;background:#fff;padding:24px}
+    .header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #C8102E;padding-bottom:14px;margin-bottom:20px}
+    .header-left h1{font-size:16pt;font-weight:800;color:#C8102E;letter-spacing:-0.5px}
+    .header-left p{font-size:8.5pt;color:#555;margin-top:2px}
+    .header-right{text-align:right;font-size:8.5pt;color:#555}
+    .section{margin-bottom:18px}
+    .section-title{font-size:10pt;font-weight:700;color:#C8102E;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:10px}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .field{background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:8px 10px}
+    .field-label{font-size:7.5pt;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+    .field-value{font-size:9.5pt;font-weight:500;color:#111}
+    .table-findings{width:100%;border-collapse:collapse;margin-top:10px}
+    .table-findings th, .table-findings td{border:1px solid #e8e8e8;padding:8px 10px;text-align:left}
+    .table-findings th{background:#f8f8f8;font-size:8pt;font-weight:700;color:#555;text-transform:uppercase}
+    .table-findings td{font-size:9pt}
+    .badge{display:inline-block;padding:2px 6px;border-radius:4px;color:#fff;font-size:8pt;font-weight:700}
+    .footer{margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+    .sign-box{text-align:center}
+    .sign-line{border-top:1px solid #333;margin-top:36px;padding-top:6px;font-size:8pt;color:#555}
+    .watermark{position:fixed;bottom:24px;right:24px;font-size:7pt;color:#ccc}
+    @media print{.no-print{display:none}}
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <h1>📋 Formato de Auditoría de Seguridad</h1>
+    <p>Sistema RIS — Nissan Motor de México</p>
+  </div>
+  <div class="header-right">
+    <strong>Folio: ${audit.audit_folio || "—"}</strong><br/>
+    Generado: ${new Date().toLocaleString("es-MX")}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📍 Datos Generales de la Auditoría</div>
+  <div class="grid">
+    <div class="field"><div class="field-label">Nombre de Auditoría</div><div class="field-value">${audit.name || "—"}</div></div>
+    <div class="field"><div class="field-label">Tipo</div><div class="field-value">${audit.type || "—"}</div></div>
+    <div class="field"><div class="field-label">Planta</div><div class="field-value">${plantName}</div></div>
+    <div class="field"><div class="field-label">Área</div><div class="field-value">${areaName}</div></div>
+    <div class="field"><div class="field-label">Fecha de Creación</div><div class="field-value">${new Date(audit.created_at).toLocaleDateString()}</div></div>
+    <div class="field"><div class="field-label">Auditor / Responsable</div><div class="field-value">${responsibleName}</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">⚠️ Hallazgos Registrados</div>
+  <table class="table-findings">
+    <thead>
+      <tr>
+        <th style="width: 8%">ID</th>
+        <th>Descripción del Hallazgo</th>
+        <th style="width: 20%">Ubicación</th>
+        <th style="width: 15%">Categoría</th>
+        <th style="width: 10%">Nivel</th>
+        <th style="width: 12%">Estatus</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${findings.length === 0 ? `<tr><td colspan="6" style="text-align:center">No hay hallazgos registrados</td></tr>` : findings.map(f => `
+        <tr>
+          <td>${f.id}</td>
+          <td>${f.description || "—"}</td>
+          <td>${f.location || "—"}</td>
+          <td>${f.finding_category || "—"}</td>
+          <td>${f.level || "—"}</td>
+          <td>
+            <span class="badge" style="background:${f.status === 'Abierto' ? '#C8102E' : f.status === 'En revisión' ? '#FB8C00' : '#43A047'}">${f.status}</span>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <div class="sign-box"><div class="sign-line">Auditor / Responsable</div></div>
+  <div class="sign-box"><div class="sign-line">Seguridad Industrial</div></div>
+</div>
+
+<div class="watermark">RIS v1.0 — Nissan Motor de México</div>
+<script>window.onload=()=>{window.print();}</script>
+</body></html>`);
+    win.document.close();
   };
 
 
@@ -224,9 +328,20 @@ const DetalleAuditoria = () => {
               <h1 style={{ margin: '0.5rem 0' }}>{audit.name}</h1>
               <p className="audit-folio" style={{ fontSize: '1.1rem' }}>{audit.audit_folio}</p>
             </div>
-            <button className="btn-new-audit" onClick={() => setShowAddFindingModal(true)}>
-              + Agregar Hallazgo
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button 
+                className="btn-new-audit" 
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle, #333)', color: 'var(--text-primary)' }}
+                onClick={printAudit}
+              >
+                🖨️ Generar Formato
+              </button>
+              {(role !== "Supervisor" && role !== "Admin") && (
+                <button className="btn-new-audit" onClick={() => setShowAddFindingModal(true)}>
+                  + Agregar Hallazgo
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="audit-info" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem' }}>
@@ -337,10 +452,26 @@ const DetalleAuditoria = () => {
                       onChange={(e) => setEditFindingForm({...editFindingForm, status: e.target.value})} 
                       required
                     >
-                      <option value="Abierto">Abierto</option>
-                      <option value="En revisión">En revisión</option>
-                      <option value="Cerrado">Cerrado</option>
-                      <option value="Rechazado">Rechazado</option>
+                      {role === "Security" ? (
+                        <>
+                          <option value="Abierto">Abierto</option>
+                          <option value="En revisión">En revisión</option>
+                          <option value="Cerrado">Cerrado</option>
+                          <option value="Rechazado">Rechazado</option>
+                        </>
+                      ) : (role === "Supervisor" || role === "Admin") ? (
+                        <>
+                          <option value="Abierto">Abierto</option>
+                          <option value="En revisión">En revisión</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Abierto">Abierto</option>
+                          <option value="En revisión">En revisión</option>
+                          <option value="Cerrado">Cerrado</option>
+                          <option value="Rechazado">Rechazado</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>

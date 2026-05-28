@@ -220,6 +220,13 @@ const AdminIncidentes = () => {
       incident_mechanism: inc.incident_mechanism || "",
       injury: inc.injury || "",
       id_cost_center: inc.id_cost_center || "",
+      id_plant: inc.id_plant || "",
+      id_area: inc.id_area || "",
+      incident_type: inc.incident_type || "",
+      status: inc.status || "abierto",
+      follow_up_date: inc.follow_up_date || "",
+      immediate_actions: inc.immediate_actions || "",
+      corrective_actions: inc.corrective_actions || "",
     });
     setSuccessMsg("");
   };
@@ -551,6 +558,20 @@ const AdminIncidentes = () => {
             <form onSubmit={saveEdit}>
               <div className="modal-body">
                 <div className="audit-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Planta</label>
+                    <select name="id_plant" value={editForm.id_plant} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                      <option value="">Seleccione planta</option>
+                      {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Área</label>
+                    <select name="id_area" value={editForm.id_area} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                      <option value="">Seleccione área</option>
+                      {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre || a.name}</option>)}
+                    </select>
+                  </div>
                   <div className="form-group">
                     <label>Tipo de Incidente</label>
                     <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>

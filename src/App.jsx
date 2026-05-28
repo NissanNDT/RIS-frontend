@@ -11,6 +11,7 @@ import AdminIncidentes from "./pages/AdminIncidentes";
 import Auditorias from "./pages/Auditorias";
 import DetalleAuditoria from "./pages/DetalleAuditoria";
 import LlenadoFormatoIncidente from "./pages/LlenadoFormatoIncidente";
+import HallazgosQueReporte from "./pages/HallazgosQueReporte";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
         <Route path="/auditorias/:id" element={<ProtectedRoute><DetalleAuditoria /></ProtectedRoute>} />
         <Route path="/llenadoFormatoIncidente" element={<ProtectedRoute><LlenadoFormatoIncidente /></ProtectedRoute>} />
+        <Route path="/misHallazgos" element={<ProtectedRoute><HallazgosQueReporte /></ProtectedRoute>} />
         {/* demás rutas */}
       </Routes>
     </BrowserRouter>

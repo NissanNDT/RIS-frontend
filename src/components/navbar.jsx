@@ -38,6 +38,7 @@ const Navbar = () => {
     { path: "/reporteIncidente", label: "Reportar Incidente" },
     { path: "/adminIncidentes", label: "Admin Incidentes" },
     { path: "/auditorias", label: "Auditorias" },
+    {path: "/misHallazgos", label: "Hallazgos que Reporte"}
   ];
 
   return (
