@@ -67,10 +67,10 @@ export const updateIncidentFormat = async (id_incident, fields) => {
   return res.data;
 };
 
-// GET factor tree records by id_incident_format (usa endpoint de incidentFormatRoutes)
+// GET factor tree records by id_incident_format (usa endpoint de factorTreeRoutes)
 export const getFactorTreeByIncidentFormat = async (id_incident_format) => {
   const res = await api.get(
-    `/incident-format/${id_incident_format}`,
+    `/factor-tree/incident-format/${id_incident_format}`,
     authHeadersJSON()
   );
   return res.data;
@@ -126,7 +126,7 @@ export const updateHazardBackground = async (id, fields) => {
 
 // GET countermeasure plan by id_incident_format
 export const getCountermeasurePlanByIncidentFormat = async (id_incident_format) => {
-  const res = await api.get(`/countermeasure-plan/${id_incident_format}`, authHeadersJSON());
+  const res = await api.get(`/countermeasure-plan/incident-format/${id_incident_format}`, authHeadersJSON());
   return res.data;
 };
 
@@ -138,7 +138,7 @@ export const createCountermeasurePlan = async (data) => {
 
 // PUT update countermeasure plan record
 export const updateCountermeasurePlan = async (id, fields) => {
-  const res = await api.put(`/countermeasure-plan/${id}`, fields, authHeadersJSON());
+  const res = await api.put(`/put/countermeasure-plan/${id}`, fields, authHeadersJSON());
   return res.data;
 };
 
@@ -175,5 +175,35 @@ export const updateAnalysisParticipant = async (id, fields) => {
 // GET all cost centers
 export const getCostCenters = async () => {
   const res = await api.get("/get/cost-center", authHeadersJSON());
+  return res.data;
+};
+
+// DELETE factor tree
+export const deleteFactorTree = async (id) => {
+  const res = await api.delete(`/delete/factor-tree/${id}`, authHeadersJSON());
+  return res.data;
+};
+
+// DELETE countermeasure plan
+export const deleteCountermeasurePlan = async (id) => {
+  const res = await api.delete(`/delete/countermeasure-plan/${id}`, authHeadersJSON());
+  return res.data;
+};
+
+// DELETE analysis participant
+export const deleteAnalysisParticipant = async (id) => {
+  const res = await api.delete(`/delete/analysis-participant/${id}`, authHeadersJSON());
+  return res.data;
+};
+
+// DELETE hazard background
+export const deleteHazardBackground = async (id) => {
+  const res = await api.delete(`/delete/hazard-background/${id}`, authHeadersJSON());
+  return res.data;
+};
+
+// DELETE intervening factors
+export const deleteInterveningFactor = async (id) => {
+  const res = await api.delete(`/delete/intervening-factors/${id}`, authHeadersJSON());
   return res.data;
 };

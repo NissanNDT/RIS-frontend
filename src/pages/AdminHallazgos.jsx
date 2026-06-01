@@ -80,7 +80,7 @@ const AdminHallazgos = () => {
     } catch (err) {
       console.error("Error fetching findings:", err.response || err);
       setError("Error al cargar los hallazgos desde la base de datos.");
-      setFindings([]); 
+      setFindings([]);
     } finally {
       setLoading(false);
     }
@@ -124,14 +124,14 @@ const AdminHallazgos = () => {
   const normalizeStr = (str) =>
     str
       ? str
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
       : "";
 
   // Extract unique values for filters from findings
   const uniqueLevels = useMemo(() => [...new Set(findings.map((f) => f.level).filter(Boolean))], [findings]);
-  
+
   const uniquePlants = useMemo(() => {
     const ids = [...new Set(findings.map((f) => f.id_plant).filter(Boolean))];
     return ids.map(id => ({
@@ -161,21 +161,21 @@ const AdminHallazgos = () => {
         f.description?.toLowerCase().includes(search.toLowerCase()) ||
         f.location?.toLowerCase().includes(search.toLowerCase()) ||
         String(f.id).includes(search);
-      
+
       const matchCategory =
         !filterCategory ||
         normalizeStr(f.finding_category) === normalizeStr(filterCategory);
-      
+
       const matchStatus =
         !filterStatus ||
         normalizeStr(f.status) === normalizeStr(filterStatus);
-      
+
       const matchLevel = !filterLevel || f.level === filterLevel;
       const matchPlant = !filterPlant || String(f.id_plant) === String(filterPlant);
       const matchArea = !filterArea || String(f.id_area) === String(filterArea);
-      
+
       const matchRole = role === "Supervisor" ? String(f.id_responsible_user) === String(userId) : true;
-      
+
       return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea && matchRole;
     });
     setFilteredFindings(newFiltered);
@@ -636,7 +636,7 @@ const AdminHallazgos = () => {
               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
                 <button type="button" className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
                 <button type="submit" className="btn-save" disabled={saving}>
-                  {saving ? "Guardando..." : "💾 Guardar Cambios"}
+                  {saving ? "Guardando..." : " Guardar Cambios"}
                 </button>
               </div>
             </form>

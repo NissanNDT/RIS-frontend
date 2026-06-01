@@ -23,7 +23,12 @@ import {
   getAnalysisParticipantsByIncidentFormat,
   createAnalysisParticipant,
   updateAnalysisParticipant,
-  getCostCenters
+  getCostCenters,
+  deleteFactorTree,
+  deleteCountermeasurePlan,
+  deleteAnalysisParticipant,
+  deleteHazardBackground,
+  deleteInterveningFactor
 } from "../services/incidentService";
 import { getPlants, getAreas } from "../services/findingService";
 import { useLocation, useParams } from "react-router-dom";
@@ -264,6 +269,79 @@ const LlenadoFormatoIncidente = () => {
         .catch(err => console.error("Error al cargar el incidente:", err));
     }
   }, [currentIncidentId]);
+
+  const handleDeleteFactorTreeRow = async (index) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar este registro del Árbol de Factores?")) return;
+    const row = factorTree[index];
+    if (row && row.id) {
+      try {
+        await deleteFactorTree(row.id);
+        alert("Registro eliminado del Árbol de Factores.");
+      } catch (err) {
+        alert("Error al eliminar del backend: " + (err.response?.data?.error || err.message));
+        return;
+      }
+    }
+    setFactorTree(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteInterveningFactorRow = async (index) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar este Factor que Interviene?")) return;
+    const row = interveningFactors[index];
+    if (row && row.id) {
+      try {
+        await deleteInterveningFactor(row.id);
+        alert("Factor que Interviene eliminado.");
+      } catch (err) {
+        alert("Error al eliminar del backend: " + (err.response?.data?.error || err.message));
+        return;
+      }
+    }
+    setInterveningFactors(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteCountermeasurePlanRow = async (index) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar este Plan de Contramedidas?")) return;
+    const row = countermeasurePlan[index];
+    if (row && row.id) {
+      try {
+        await deleteCountermeasurePlan(row.id);
+        alert("Plan de Contramedidas eliminado.");
+      } catch (err) {
+        alert("Error al eliminar del backend: " + (err.response?.data?.error || err.message));
+        return;
+      }
+    }
+    setCountermeasurePlan(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteParticipantRow = async (index) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar este Participante?")) return;
+    const row = analysisParticipants[index];
+    if (row && row.id) {
+      try {
+        await deleteAnalysisParticipant(row.id);
+        alert("Participante eliminado.");
+      } catch (err) {
+        alert("Error al eliminar del backend: " + (err.response?.data?.error || err.message));
+        return;
+      }
+    }
+    setAnalysisParticipants(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteHazardBackground = async () => {
+    if (!window.confirm("¿Está seguro de que desea eliminar los Antecedentes de Peligro o Riesgo?")) return;
+    if (hazardBackground.id) {
+      try {
+        await deleteHazardBackground(hazardBackground.id);
+        setHazardBackground({});
+        alert("Antecedentes de Peligro o Riesgo eliminados.");
+      } catch (err) {
+        alert("Error al eliminar del backend: " + (err.response?.data?.error || err.message));
+      }
+    }
+  };
 
   const handleSaveIncident = async (e) => {
     e.preventDefault();
@@ -570,8 +648,8 @@ const LlenadoFormatoIncidente = () => {
             control_point: row.control_point,
             standard: row.standard,
             actual: row.actual,
-            met_standard: row.met_standard,
-            met_safety: row.met_safety,
+            met_standard: row.met_standard === "" || row.met_standard === undefined || row.met_standard === null ? null : (row.met_standard === "true" || row.met_standard === true),
+            met_safety: row.met_safety === "" || row.met_safety === undefined || row.met_safety === null ? null : (row.met_safety === "true" || row.met_safety === true),
             comments: row.comments,
           };
           if (row.id) {
@@ -585,7 +663,19 @@ const LlenadoFormatoIncidente = () => {
       // Reload the data to get the new IDs assigned
       const newRows = await getFactorTreeByIncidentFormat(idFormat);
       if (newRows && newRows.length > 0) {
-        setFactorTree(newRows);
+        const mappedRows = newRows.map(row => ({
+          id: row.id,
+          id_incident_format: row.id_incident_format,
+          "4m": row["4m"] || row.m4 || "",
+          factor: row.factor || "",
+          control_point: row.control_point || "",
+          standard: row.standard || "",
+          actual: row.actual || "",
+          met_standard: row.met_standard !== null && row.met_standard !== undefined ? String(row.met_standard) : "",
+          met_safety: row.met_safety !== null && row.met_safety !== undefined ? String(row.met_safety) : "",
+          comments: row.comments || "",
+        }));
+        setFactorTree(mappedRows);
       }
 
       setFtStatus("success");
@@ -831,9 +921,25 @@ const LlenadoFormatoIncidente = () => {
     setApStatus(null);
     setApMessage("");
 
+    // Filtrar filas completamente vacías
+    const validRows = analysisParticipants.filter(row => row.participant_type || row.name || row.department || row.id_cost_center);
+
+    // Evitar duplicados basados en combinación de nombre y rol (participant_type) en el frontend
+    const seen = new Set();
+    const uniqueRows = [];
+    for (const row of validRows) {
+      const key = `${row.name?.trim().toLowerCase()}_${row.participant_type?.trim().toLowerCase()}`;
+      if (seen.has(key)) {
+        alert(`El participante "${row.name}" con rol "${row.participant_type}" está duplicado.`);
+        return;
+      }
+      seen.add(key);
+      uniqueRows.push(row);
+    }
+
     try {
       await Promise.all(
-        analysisParticipants.map((row) => {
+        uniqueRows.map((row) => {
           const payload = {
             id_incident_format: idFormat,
             participant_type: row.participant_type || null,
@@ -861,6 +967,8 @@ const LlenadoFormatoIncidente = () => {
           id_cost_center: r.id_cost_center !== null && r.id_cost_center !== undefined ? String(r.id_cost_center) : "",
         }));
         setAnalysisParticipants(mapped);
+      } else {
+        setAnalysisParticipants([emptyParticipantRow()]);
       }
 
       setApStatus("success");
@@ -897,7 +1005,7 @@ const LlenadoFormatoIncidente = () => {
               Volver
             </button>
             <button className="btn-primary" onClick={handleDemoSave}>
-              💾 Guardar Borrador
+               Guardar Borrador
             </button>
           </div>
         </div>
@@ -906,8 +1014,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.incident ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("incident")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🚨</span>
-              1. Reporte de Incidente (incident)
+            
+              1. Reporte de Incidente
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -991,7 +1099,7 @@ const LlenadoFormatoIncidente = () => {
                 </div>
                 <div className="lfi-section-actions">
                   <button type="submit" className="btn-primary">
-                    💾 {currentIncidentId ? "Actualizar" : "Guardar"} Incidente
+                    {currentIncidentId ? "Actualizar" : "Guardar"} Incidente
                   </button>
                 </div>
               </form>
@@ -1003,8 +1111,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.incident_format ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("incident_format")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">📋</span>
-              2. Datos Generales del Formato (incident_format)
+              
+              2. Datos Generales del Formato 
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1204,7 +1312,7 @@ const LlenadoFormatoIncidente = () => {
 
                 <div className="lfi-section-actions">
                   <button type="submit" className="btn-primary">
-                    💾 Guardar Datos Generales
+                     Guardar Datos Generales
                   </button>
                 </div>
               </form>
@@ -1216,8 +1324,7 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.grafico ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("grafico")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🎨</span>
-              3. Gráfico del Incidente
+               3. Gráfico del Incidente
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1248,8 +1355,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.factor_tree ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("factor_tree")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🌿</span>
-              4. Árbol de Factores (factor_tree)
+              
+              4. Árbol de Factores
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1272,6 +1379,7 @@ const LlenadoFormatoIncidente = () => {
                           <th>Cumple Estándar</th>
                           <th>Cumple Seguridad</th>
                           <th>Comentarios</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1360,6 +1468,17 @@ const LlenadoFormatoIncidente = () => {
                                 placeholder="Observaciones"
                               />
                             </td>
+                            {/* Acciones */}
+                            <td>
+                              <button
+                                type="button"
+                                className="btn-danger"
+                                style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 4px', cursor: 'pointer' }}
+                                onClick={() => handleDeleteFactorTreeRow(idx)}
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1389,7 +1508,7 @@ const LlenadoFormatoIncidente = () => {
 
                   <div className="lfi-section-actions">
                     <button type="submit" className="btn-primary">
-                      💾 Guardar Árbol de Factores
+                     Guardar Árbol de Factores
                     </button>
                   </div>
                 </form>
@@ -1402,8 +1521,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.intervening_factors ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("intervening_factors")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">⚡</span>
-              5. Factores que Intervienen (intervening_factors)
+              
+              5. Factores que Intervienen 
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1417,13 +1536,23 @@ const LlenadoFormatoIncidente = () => {
                     {interveningFactors.map((row, idx) => (
                       <div key={idx} className="lfi-form-group full-width" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                         <label>Factor #{idx + 1}</label>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => handleInterveningFactorChange(idx, e)}
-                          placeholder="Ej. Acto Inseguro - Operar sin equipo de protección"
-                          style={{ width: '100%' }}
-                        />
+                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                          <input
+                            type="text"
+                            value={row.name}
+                            onChange={(e) => handleInterveningFactorChange(idx, e)}
+                            placeholder="Ej. Acto Inseguro - Operar sin equipo de protección"
+                            style={{ flexGrow: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '0 16px', cursor: 'pointer' }}
+                            onClick={() => handleDeleteInterveningFactorRow(idx)}
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1452,7 +1581,7 @@ const LlenadoFormatoIncidente = () => {
 
                   <div className="lfi-section-actions" style={{ marginTop: '20px' }}>
                     <button type="submit" className="btn-primary">
-                      💾 Guardar Factores que Intervienen
+                      Guardar Factores que Intervienen
                     </button>
                   </div>
                 </form>
@@ -1465,8 +1594,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.hazard_background ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("hazard_background")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">⏳</span>
-              6. Antecedentes de Peligro o Riesgo (hazard_background)
+              
+              6. Antecedentes de Peligro o Riesgo 
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1646,10 +1775,20 @@ const LlenadoFormatoIncidente = () => {
                     </div>
                   )}
 
-                  <div className="lfi-section-actions" style={{ marginTop: '20px' }}>
+                  <div className="lfi-section-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
                     <button type="submit" className="btn-primary">
-                      💾 Guardar Antecedentes de Peligro o Riesgo
+                      Guardar Antecedentes de Peligro o Riesgo
                     </button>
+                    {hazardBackground.id && (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '10px 20px', cursor: 'pointer', fontWeight: 'bold' }}
+                        onClick={handleDeleteHazardBackground}
+                      >
+                        🗑️ Eliminar Antecedentes
+                      </button>
+                    )}
                   </div>
                 </form>
               )}
@@ -1661,8 +1800,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.contermeasure_plan ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("contermeasure_plan")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🛠️</span>
-              7. Plan de Contramedidas (countermeasure_plan)
+              
+              7. Plan de Contramedidas
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1687,6 +1826,7 @@ const LlenadoFormatoIncidente = () => {
                           <th>OK</th>
                           <th>NG</th>
                           <th>Comentario</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1809,6 +1949,17 @@ const LlenadoFormatoIncidente = () => {
                                 placeholder="Comentario"
                               />
                             </td>
+                            {/* Acciones */}
+                            <td>
+                              <button
+                                type="button"
+                                className="btn-danger"
+                                style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer' }}
+                                onClick={() => handleDeleteCountermeasurePlanRow(idx)}
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1839,7 +1990,7 @@ const LlenadoFormatoIncidente = () => {
 
                   <div className="lfi-section-actions" style={{ marginTop: "20px" }}>
                     <button type="submit" className="btn-primary">
-                      💾 Guardar Plan de Contramedidas
+                      Guardar Plan de Contramedidas
                     </button>
                   </div>
                 </form>
@@ -1852,8 +2003,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.control_hierarchy ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("control_hierarchy")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🛡️</span>
-              8. Jerarquía de Controles (control_hierarchy)
+            
+              8. Jerarquía de Controles 
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1887,8 +2038,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.verification_method ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("verification_method")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">🔍</span>
-              9. Métodos de Verificación (verification_method)
+              
+              9. Métodos de Verificación
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1939,8 +2090,8 @@ const LlenadoFormatoIncidente = () => {
         <div className={`lfi-card ${openSections.analysis_participant ? "is-open" : ""}`}>
           <button className="lfi-card-header" onClick={() => toggleSection("analysis_participant")}>
             <span className="lfi-card-title">
-              <span className="lfi-card-icon">👥</span>
-              10. Participantes del Análisis (analysis_participant)
+              
+              10. Participantes del Análisis 
             </span>
             <span className="lfi-card-chevron">▼</span>
           </button>
@@ -1958,6 +2109,7 @@ const LlenadoFormatoIncidente = () => {
                           <th>Nombre</th>
                           <th>Departamento</th>
                           <th>Centro de Costos</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2009,6 +2161,17 @@ const LlenadoFormatoIncidente = () => {
                                 ))}
                               </select>
                             </td>
+                            {/* Acciones */}
+                            <td>
+                              <button
+                                type="button"
+                                className="btn-danger"
+                                style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer' }}
+                                onClick={() => handleDeleteParticipantRow(idx)}
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2039,7 +2202,7 @@ const LlenadoFormatoIncidente = () => {
 
                   <div className="lfi-section-actions" style={{ marginTop: '20px' }}>
                     <button type="submit" className="btn-primary">
-                      💾 Guardar Participantes
+                      Guardar Participantes
                     </button>
                   </div>
                 </form>
@@ -2047,69 +2210,6 @@ const LlenadoFormatoIncidente = () => {
             </div>
           )}
         </div>
-
-        {/* ── 11. CONTROL SECTION ── */}
-        <div className={`lfi-card ${openSections.control ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("control")}>
-            <span className="lfi-card-title">
-              <span className="lfi-card-icon">⚙️</span>
-              11. Control de Formato (control)
-            </span>
-            <span className="lfi-card-chevron">▼</span>
-          </button>
-          {openSections.control && (
-            <div className="lfi-card-body">
-              <div className="lfi-form-grid">
-                <div className="lfi-form-group">
-                  <label>Elaborado Por</label>
-                  <input
-                    name="prepared_by"
-                    value={form.prepared_by}
-                    onChange={handleInputChange}
-                    placeholder="Firma/Nombre del elaborador"
-                  />
-                </div>
-                <div className="lfi-form-group">
-                  <label>Revisado Por</label>
-                  <input
-                    name="reviewed_by"
-                    value={form.reviewed_by}
-                    onChange={handleInputChange}
-                    placeholder="Firma/Nombre del revisor"
-                  />
-                </div>
-                <div className="lfi-form-group">
-                  <label>Aprobado Por</label>
-                  <input
-                    name="approved_by"
-                    value={form.approved_by}
-                    onChange={handleInputChange}
-                    placeholder="Firma/Nombre del aprobador"
-                  />
-                </div>
-                <div className="lfi-form-group">
-                  <label>Fecha de Aprobación</label>
-                  <input
-                    name="approval_date"
-                    type="date"
-                    value={form.approval_date}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="lfi-form-group">
-                  <label>Versión del Formato</label>
-                  <input
-                    name="document_version"
-                    value={form.document_version}
-                    onChange={handleInputChange}
-                    placeholder="Ej. v1.2"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
   );
