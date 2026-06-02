@@ -207,3 +207,12 @@ export const deleteInterveningFactor = async (id) => {
   const res = await api.delete(`/delete/intervening-factors/${id}`, authHeadersJSON());
   return res.data;
 };
+
+// download excel report
+export const downloadIncidentExcel = async (id_incident) => {
+  const res = await api.get(`/excel/${id_incident}`, {
+    responseType: 'blob',
+    ...authHeaders()
+  });
+  return res.data;
+};

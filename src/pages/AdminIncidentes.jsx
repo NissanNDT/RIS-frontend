@@ -550,69 +550,69 @@ const AdminIncidentes = () => {
       {/* Edit Modal */}
       {editingId && (
         <div className="popup" onClick={cancelEdit}>
-          <div className="modal-content glass" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+          <div className="modal-content glass" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Editar Incidente INC-{String(editingId).padStart(4, "0")}</h2>
               <button className="btn-close" onClick={cancelEdit}>&times;</button>
             </div>
             <form onSubmit={saveEdit}>
               <div className="modal-body">
-                <div className="audit-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="audit-form-grid">
                   <div className="form-group">
                     <label>Planta</label>
-                    <select name="id_plant" value={editForm.id_plant} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                    <select name="id_plant" value={editForm.id_plant} onChange={handleEditChange}>
                       <option value="">Seleccione planta</option>
                       {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Área</label>
-                    <select name="id_area" value={editForm.id_area} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                    <select name="id_area" value={editForm.id_area} onChange={handleEditChange}>
                       <option value="">Seleccione área</option>
                       {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre || a.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Tipo de Incidente</label>
-                    <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                    <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange}>
                       {TIPO_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Nivel</label>
-                    <select name="level" value={editForm.level} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                    <select name="level" value={editForm.level} onChange={handleEditChange}>
                       {LEVEL_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Estatus</label>
-                    <select name="status" value={editForm.status} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                    <select name="status" value={editForm.status} onChange={handleEditChange}>
                       {STATUS_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Responsable</label>
-                    <input name="id_responsible_user" value={editForm.id_responsible_user} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }} />
+                    <input name="id_responsible_user" value={editForm.id_responsible_user} onChange={handleEditChange} />
                   </div>
                   <div className="form-group">
                     <label>Fecha Límite Seguimiento</label>
-                    <input type="date" name="follow_up_date" value={editForm.follow_up_date} onChange={handleEditChange} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }} />
+                    <input type="date" name="follow_up_date" value={editForm.follow_up_date} onChange={handleEditChange} />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Descripción</label>
-                    <textarea name="description" value={editForm.description} onChange={handleEditChange} rows={2} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }} />
+                    <textarea name="description" value={editForm.description} onChange={handleEditChange} rows={2} />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Acciones Inmediatas</label>
-                    <textarea name="immediate_actions" value={editForm.immediate_actions} onChange={handleEditChange} rows={2} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }} />
+                    <textarea name="immediate_actions" value={editForm.immediate_actions} onChange={handleEditChange} rows={2} />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Acciones Correctivas / Preventivas</label>
-                    <textarea name="corrective_actions" value={editForm.corrective_actions} onChange={handleEditChange} rows={2} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }} />
+                    <textarea name="corrective_actions" value={editForm.corrective_actions} onChange={handleEditChange} rows={2} />
                   </div>
                 </div>
               </div>
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+              <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
                 <button type="submit" className="btn-save" disabled={saving}>
                   {saving ? "Guardando..." : "💾 Guardar Cambios"}

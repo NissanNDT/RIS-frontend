@@ -28,7 +28,8 @@ import {
   deleteCountermeasurePlan,
   deleteAnalysisParticipant,
   deleteHazardBackground,
-  deleteInterveningFactor
+  deleteInterveningFactor,
+  downloadIncidentExcel
 } from "../services/incidentService";
 import { getPlants, getAreas } from "../services/findingService";
 import { useLocation, useParams } from "react-router-dom";
@@ -987,6 +988,28 @@ const LlenadoFormatoIncidente = () => {
     alert("¡Borrador guardado localmente! (Lógica de conexión lista para integración)");
   };
 
+  const handleGenerateExcel = async (e) => {
+    e.preventDefault();
+    if (!currentIncidentId) {
+      alert("Primero debe guardar el Reporte del Incidente para generar el Excel.");
+      return;
+    }
+    try {
+      const blob = await downloadIncidentExcel(currentIncidentId);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `reporte_incidente_${currentIncidentId}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error al generar el formato Excel:", error);
+      alert("Ocurrió un error al generar el archivo Excel. Asegúrese de que el servidor esté activo.");
+    }
+  };
+
   return (
     <div className="lfi-page animate-in">
       <div className="lfi-container">
@@ -1006,6 +1029,9 @@ const LlenadoFormatoIncidente = () => {
             </button>
             <button className="btn-primary" onClick={handleDemoSave}>
                Guardar Borrador
+            </button>
+            <button className="btn-primary btn-generate-excel" onClick={handleGenerateExcel} style={{ backgroundColor: "#28a745" }}>
+               Generar Formato
             </button>
           </div>
         </div>

@@ -486,14 +486,14 @@ const AdminHallazgos = () => {
       {/* Edit Modal */}
       {editingId && (
         <div className="popup" onClick={cancelEdit}>
-          <div className="modal-content glass" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+          <div className="modal-content glass" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Editar Hallazgo #{editingId}</h2>
               <button className="btn-close" onClick={cancelEdit}>&times;</button>
             </div>
             <form onSubmit={saveEdit}>
               <div className="modal-body">
-                <div className="audit-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="audit-form-grid">
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Descripción</label>
                     <textarea
@@ -501,7 +501,6 @@ const AdminHallazgos = () => {
                       value={editForm.description}
                       onChange={handleEditChange}
                       rows={3}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                   <div className="form-group">
@@ -510,7 +509,6 @@ const AdminHallazgos = () => {
                       name="location"
                       value={editForm.location}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                   <div className="form-group">
@@ -519,7 +517,6 @@ const AdminHallazgos = () => {
                       name="finding_category"
                       value={editForm.finding_category}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     >
                       {CATEGORY_OPTIONS.filter((o) => o.value).map((o) => (
                         <option key={o.value} value={o.value}>
@@ -534,7 +531,6 @@ const AdminHallazgos = () => {
                       name="status"
                       value={editForm.status}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     >
                       {STATUS_OPTIONS.filter((o) => o.value).map((o) => (
                         <option key={o.value} value={o.value}>
@@ -549,7 +545,6 @@ const AdminHallazgos = () => {
                       name="id_plant"
                       value={editForm.id_plant}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     >
                       <option value="">Seleccione una planta</option>
                       {plants.map((p) => (
@@ -565,7 +560,6 @@ const AdminHallazgos = () => {
                       name="id_area"
                       value={editForm.id_area}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     >
                       <option value="">Seleccione un área</option>
                       {areas.map((a) => (
@@ -581,7 +575,6 @@ const AdminHallazgos = () => {
                       name="id_responsible_user"
                       value={editForm.id_responsible_user}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     >
                       <option value="">Seleccione un responsable</option>
                       {users.map((u) => (
@@ -598,7 +591,6 @@ const AdminHallazgos = () => {
                       type="number"
                       value={editForm.id_audit}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                   <div className="form-group">
@@ -608,7 +600,6 @@ const AdminHallazgos = () => {
                       type="date"
                       value={editForm.verification_date}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                   <div className="form-group">
@@ -618,7 +609,6 @@ const AdminHallazgos = () => {
                       type="date"
                       value={editForm.conclusion_date}
                       onChange={handleEditChange}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -628,12 +618,11 @@ const AdminHallazgos = () => {
                       value={editForm.corrective_action}
                       onChange={handleEditChange}
                       rows={2}
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-default)' }}
                     />
                   </div>
                 </div>
               </div>
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+              <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
                 <button type="submit" className="btn-save" disabled={saving}>
                   {saving ? "Guardando..." : " Guardar Cambios"}

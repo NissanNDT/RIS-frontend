@@ -59,8 +59,8 @@ const DetalleAuditoria = () => {
   const [findingForm, setFindingForm] = useState({
     description: "",
     location: "",
-    finding_category: "Acto Inseguro",
-    level: "A"
+    level: "A",
+    reference_to_the_standard:""
   });
   const [editFindingForm, setEditFindingForm] = useState({});
   const [selectedFindingId, setSelectedFindingId] = useState(null);
@@ -246,7 +246,7 @@ const DetalleAuditoria = () => {
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
-      setFindingForm({ description: "", location: "", finding_category: "Acto Inseguro", level: "A" });
+      setFindingForm({ description: "", location: "", level: "A",reference_to_the_standard:"" });
       const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
     } catch (err) {
@@ -262,9 +262,9 @@ const DetalleAuditoria = () => {
     setEditFindingForm({
       description: finding.description,
       location: finding.location,
-      finding_category: finding.finding_category,
       status: finding.status,
-      level: finding.level || "A"
+      level: finding.level || "A",
+      reference_to_the_standard:finding.reference_to_the_standard
     });
     setShowEditFindingModal(true);
   };
@@ -421,16 +421,13 @@ const DetalleAuditoria = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Categoría</label>
-                    <select 
-                      value={editFindingForm.finding_category} 
-                      onChange={(e) => setEditFindingForm({...editFindingForm, finding_category: e.target.value})} 
-                      required
-                    >
-                      <option value="Acto Inseguro">Acto Inseguro</option>
-                      <option value="Condición Insegura">Condición Insegura</option>
-                      <option value="Condición NG">Condición NG</option>
-                    </select>
+                    <label>Referencia a la Norma</label>
+                    <input 
+                      type="text" 
+                      value={editFindingForm.reference_to_the_standard} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, reference_to_the_standard: e.target.value})} 
+                      required 
+                    />
                   </div>
                   <div className="form-group">
                     <label>Nivel</label>
@@ -521,17 +518,15 @@ const DetalleAuditoria = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Categoría</label>
-                    <select 
-                      name="finding_category" 
-                      value={findingForm.finding_category} 
-                      onChange={(e) => setFindingForm(p => ({...p, finding_category: e.target.value}))} 
-                      required
-                    >
-                      <option value="Acto Inseguro">Acto Inseguro</option>
-                      <option value="Condición Insegura">Condición Insegura</option>
-                      <option value="Condición NG">Condición NG</option>
-                    </select>
+                    <label>Referencia a la Norma</label>
+                    <input 
+                      type="text" 
+                      name="reference_to_the_standard" 
+                      value={findingForm.reference_to_the_standard} 
+                      onChange={(e) => setFindingForm(p => ({...p, reference_to_the_standard: e.target.value}))} 
+                      placeholder="Ej. ISO 14001"
+                      required 
+                    />
                   </div>
                   <div className="form-group">
                     <label>Nivel</label>

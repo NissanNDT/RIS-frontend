@@ -209,15 +209,16 @@
 
 .modal-content {
     background: var(--bg-card);
-    width: 90%;
+    width: 100%;
     max-width: 800px;
-    max-height: 80vh;
+    max-height: 90vh;
     border-radius: 16px;
     position: relative;
     display: flex;
     flex-direction: column;
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
     animation: modalAppear 0.3s ease-out;
+    overflow-y: auto;
 }
 
 @keyframes modalAppear {
