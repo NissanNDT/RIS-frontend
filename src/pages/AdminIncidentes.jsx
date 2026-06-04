@@ -58,6 +58,7 @@ const fmtDateInput = (d) => (d ? new Date(d).toISOString().split("T")[0] : "");
 /* ════════════════════════════════════════════════════════════ */
 const AdminIncidentes = () => {
   const navigate = useNavigate();
+  const role = localStorage.getItem("role");
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -371,24 +372,28 @@ const AdminIncidentes = () => {
             <label htmlFor="ai-filter-date">Fecha</label>
             <input id="ai-filter-date" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
           </div>
-          <div className="filter-group">
-            <label htmlFor="ai-filter-plant">Planta</label>
-            <select id="ai-filter-plant" value={filterPlant} onChange={(e) => setFilterPlant(e.target.value)}>
-              <option value="">Todas</option>
-              {plants.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group">
-            <label htmlFor="ai-filter-area">Área</label>
-            <select id="ai-filter-area" value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
-              <option value="">Todas</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>{a.name || a.nombre}</option>
-              ))}
-            </select>
-          </div>
+          {role !== "Supervisor" && (
+            <>
+              <div className="filter-group">
+                <label htmlFor="ai-filter-plant">Planta</label>
+                <select id="ai-filter-plant" value={filterPlant} onChange={(e) => setFilterPlant(e.target.value)}>
+                  <option value="">Todas</option>
+                  {plants.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-group">
+                <label htmlFor="ai-filter-area">Área</label>
+                <select id="ai-filter-area" value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
+                  <option value="">Todas</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name || a.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
           <div className="filter-group">
             <label htmlFor="ai-filter-level">Nivel</label>
             <select id="ai-filter-level" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>

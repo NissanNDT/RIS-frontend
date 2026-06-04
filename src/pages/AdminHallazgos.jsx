@@ -359,32 +359,36 @@ const AdminHallazgos = () => {
               ))}
             </select>
           </div>
-          <div className="filter-group">
-            <label htmlFor="filter-plant">Planta</label>
-            <select
-              id="filter-plant"
-              value={filterPlant}
-              onChange={(e) => setFilterPlant(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {uniquePlants.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-group">
-            <label htmlFor="filter-area">Área</label>
-            <select
-              id="filter-area"
-              value={filterArea}
-              onChange={(e) => setFilterArea(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {uniqueAreas.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
+          {role !== "Supervisor" && (
+            <>
+              <div className="filter-group">
+                <label htmlFor="filter-plant">Planta</label>
+                <select
+                  id="filter-plant"
+                  value={filterPlant}
+                  onChange={(e) => setFilterPlant(e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {uniquePlants.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-group">
+                <label htmlFor="filter-area">Área</label>
+                <select
+                  id="filter-area"
+                  value={filterArea}
+                  onChange={(e) => setFilterArea(e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {uniqueAreas.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
           <div className="filter-group">
             <label htmlFor="filter-audit-status">Auditoría</label>
             <select
