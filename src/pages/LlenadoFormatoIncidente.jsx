@@ -1246,9 +1246,8 @@ const LlenadoFormatoIncidente = () => {
                       onChange={handleIncidentFormatChange}
                     >
                       <option value="">Seleccione tipo</option>
-                      <option value="Directo">Directo</option>
-                      <option value="Indirecto">Indirecto</option>
-                      <option value="Contratista">Contratista</option>
+                      <option value="Sindicalizado">Sindicalizado</option>
+                      <option value="No sindicalizado">No Sindicalizado</option>
                     </select>
                   </div>
 
@@ -2149,7 +2148,7 @@ const LlenadoFormatoIncidente = () => {
                                 onChange={(e) => handleParticipantChange(idx, e)}
                               >
                                 <option value="">-- Seleccione --</option>
-                                <option value="Participante">Participante</option>
+                                <option value="Trabajador">Participante</option>
                                 <option value="Parte interesada pertinente">Parte interesada pertinente</option>
                                 <option value="Representante de los trabajadores">Representante de los trabajadores</option>
                               </select>

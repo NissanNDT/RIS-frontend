@@ -48,6 +48,7 @@ const AdminHallazgos = () => {
   const [filterLevel, setFilterLevel] = useState("");
   const [filterPlant, setFilterPlant] = useState("");
   const [filterArea, setFilterArea] = useState("");
+  const [filterAuditStatus, setFilterAuditStatus] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -174,12 +175,16 @@ const AdminHallazgos = () => {
       const matchPlant = !filterPlant || String(f.id_plant) === String(filterPlant);
       const matchArea = !filterArea || String(f.id_area) === String(filterArea);
 
+      const matchAuditStatus =
+        !filterAuditStatus ||
+        (filterAuditStatus === "con_auditoria" ? !!f.id_audit : !f.id_audit);
+
       const matchRole = role === "Supervisor" ? String(f.id_responsible_user) === String(userId) : true;
 
-      return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea && matchRole;
+      return matchSearch && matchCategory && matchStatus && matchLevel && matchPlant && matchArea && matchAuditStatus && matchRole;
     });
     setFilteredFindings(newFiltered);
-  }, [findings, search, filterCategory, filterStatus, filterLevel, filterPlant, filterArea]);
+  }, [findings, search, filterCategory, filterStatus, filterLevel, filterPlant, filterArea, filterAuditStatus]);
 
   // Map value to backend category format
   const mapCategoryToBackend = (val) => {
@@ -225,6 +230,8 @@ const AdminHallazgos = () => {
       corrective_action: finding.corrective_action || "",
       id_audit: finding.id_audit || "",
       conclusion_date: formatDateInput(finding.conclusion_date),
+      reference_to_the_standard: finding.reference_to_the_standard || "",
+      level: finding.level || "A",
     });
     setSuccessMsg("");
   };
@@ -237,6 +244,26 @@ const AdminHallazgos = () => {
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const isSecurity = role === "Security";
+  const hasAudit = !!editForm.id_audit;
+
+  const isFieldDisabled = (fieldName) => {
+    if (isSecurity) {
+      if (!hasAudit) {
+        return true;
+      }
+      const allowedFields = [
+        "location",
+        "description",
+        "reference_to_the_standard",
+        "level",
+        "verification_date"
+      ];
+      return !allowedFields.includes(fieldName);
+    }
+    return false;
   };
 
   const saveEdit = async (e) => {
@@ -253,6 +280,8 @@ const AdminHallazgos = () => {
         id_audit: editForm.id_audit ? Number(editForm.id_audit) : null,
         verification_date: editForm.verification_date || null,
         conclusion_date: editForm.conclusion_date || null,
+        reference_to_the_standard: editForm.reference_to_the_standard || null,
+        level: editForm.level || null,
       };
       await updateFinding(editingId, payload);
       setSuccessMsg("Hallazgo actualizado correctamente");
@@ -354,6 +383,18 @@ const AdminHallazgos = () => {
               {uniqueAreas.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="filter-audit-status">Auditoría</label>
+            <select
+              id="filter-audit-status"
+              value={filterAuditStatus}
+              onChange={(e) => setFilterAuditStatus(e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="con_auditoria">Con auditoría</option>
+              <option value="sin_auditoria">Sin auditoría</option>
             </select>
           </div>
           <div className="filter-group filter-count">
@@ -493,6 +534,16 @@ const AdminHallazgos = () => {
             </div>
             <form onSubmit={saveEdit}>
               <div className="modal-body">
+                {isSecurity && !hasAudit && (
+                  <div style={{ marginBottom: '1.2rem', background: '#ffebee', color: '#c62828', border: '1px solid #ffcdd2', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'left', fontWeight: '500' }}>
+                    ⚠️ Este hallazgo no pertenece a ninguna auditoría. Como usuario con rol "Security", no tienes permisos para editarlo (modo solo lectura).
+                  </div>
+                )}
+                {isSecurity && hasAudit && (
+                  <div style={{ marginBottom: '1.2rem', background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'left', fontWeight: '500' }}>
+                    ℹ️ Como usuario con rol "Security", solo se te permite editar: Descripción, Ubicación, Referencia a la Norma, Nivel y Fecha de Verificación.
+                  </div>
+                )}
                 <div className="audit-form-grid">
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Descripción</label>
@@ -501,6 +552,7 @@ const AdminHallazgos = () => {
                       value={editForm.description}
                       onChange={handleEditChange}
                       rows={3}
+                      disabled={isFieldDisabled("description")}
                     />
                   </div>
                   <div className="form-group">
@@ -509,7 +561,31 @@ const AdminHallazgos = () => {
                       name="location"
                       value={editForm.location}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("location")}
                     />
+                  </div>
+                  <div className="form-group">
+                    <label>Referencia a la Norma</label>
+                    <input
+                      name="reference_to_the_standard"
+                      value={editForm.reference_to_the_standard}
+                      onChange={handleEditChange}
+                      disabled={isFieldDisabled("reference_to_the_standard")}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Nivel</label>
+                    <select
+                      name="level"
+                      value={editForm.level}
+                      onChange={handleEditChange}
+                      disabled={isFieldDisabled("level")}
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="Otros">Otros</option>
+                    </select>
                   </div>
                   <div className="form-group">
                     <label>Categoría</label>
@@ -517,6 +593,7 @@ const AdminHallazgos = () => {
                       name="finding_category"
                       value={editForm.finding_category}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("finding_category")}
                     >
                       {CATEGORY_OPTIONS.filter((o) => o.value).map((o) => (
                         <option key={o.value} value={o.value}>
@@ -531,6 +608,7 @@ const AdminHallazgos = () => {
                       name="status"
                       value={editForm.status}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("status")}
                     >
                       {STATUS_OPTIONS.filter((o) => o.value).map((o) => (
                         <option key={o.value} value={o.value}>
@@ -545,6 +623,7 @@ const AdminHallazgos = () => {
                       name="id_plant"
                       value={editForm.id_plant}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("id_plant")}
                     >
                       <option value="">Seleccione una planta</option>
                       {plants.map((p) => (
@@ -560,6 +639,7 @@ const AdminHallazgos = () => {
                       name="id_area"
                       value={editForm.id_area}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("id_area")}
                     >
                       <option value="">Seleccione un área</option>
                       {areas.map((a) => (
@@ -575,6 +655,7 @@ const AdminHallazgos = () => {
                       name="id_responsible_user"
                       value={editForm.id_responsible_user}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("id_responsible_user")}
                     >
                       <option value="">Seleccione un responsable</option>
                       {users.map((u) => (
@@ -591,6 +672,7 @@ const AdminHallazgos = () => {
                       type="number"
                       value={editForm.id_audit}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("id_audit")}
                     />
                   </div>
                   <div className="form-group">
@@ -600,6 +682,7 @@ const AdminHallazgos = () => {
                       type="date"
                       value={editForm.verification_date}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("verification_date")}
                     />
                   </div>
                   <div className="form-group">
@@ -609,6 +692,7 @@ const AdminHallazgos = () => {
                       type="date"
                       value={editForm.conclusion_date}
                       onChange={handleEditChange}
+                      disabled={isFieldDisabled("conclusion_date")}
                     />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -618,13 +702,14 @@ const AdminHallazgos = () => {
                       value={editForm.corrective_action}
                       onChange={handleEditChange}
                       rows={2}
+                      disabled={isFieldDisabled("corrective_action")}
                     />
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
-                <button type="submit" className="btn-save" disabled={saving}>
+                <button type="submit" className="btn-save" disabled={saving || (isSecurity && !hasAudit)}>
                   {saving ? "Guardando..." : " Guardar Cambios"}
                 </button>
               </div>
