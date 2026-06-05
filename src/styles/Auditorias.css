@@ -389,3 +389,15 @@
         width: 100%;
     }
 }
+
+/* Disabled Form Elements Styling */
+.form-group input:disabled, 
+.form-group select:disabled, 
+.form-group textarea:disabled {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-secondary) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+

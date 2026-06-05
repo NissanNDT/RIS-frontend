@@ -9,7 +9,8 @@ import {
   getUsers,
   createFinding, 
   updateFinding,
-  getFindingsByAuditId
+  getFindingsByAuditId,
+  deleteFinding
 } from "../services/findingService";
 import "../styles/Auditorias.css";
 
@@ -60,12 +61,16 @@ const DetalleAuditoria = () => {
     description: "",
     location: "",
     level: "A",
-    reference_to_the_standard:""
+    reference_to_the_standard: "",
+    finding_category: "Condición Insegura"
   });
   const [editFindingForm, setEditFindingForm] = useState({});
   const [selectedFindingId, setSelectedFindingId] = useState(null);
 
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [findingToDelete, setFindingToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Bulk actions states
   const [selectedFindings, setSelectedFindings] = useState([]);
@@ -316,7 +321,6 @@ const DetalleAuditoria = () => {
           <td>${f.id}</td>
           <td>${f.description || "—"}</td>
           <td>${f.location || "—"}</td>
-          <td>${f.finding_category || "—"}</td>
           <td>${f.level || "—"}</td>
           <td>
             <span class="badge" style="background:${f.status === 'Abierto' ? '#C8102E' : f.status === 'En revisión' ? '#FB8C00' : '#43A047'}">${f.status}</span>
@@ -350,7 +354,7 @@ const DetalleAuditoria = () => {
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
-      setFindingForm({ description: "", location: "", level: "A",reference_to_the_standard:"" });
+      setFindingForm({ description: "", location: "", level: "A", reference_to_the_standard: "", finding_category: "Condición Insegura" });
       const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
     } catch (err) {
@@ -364,11 +368,14 @@ const DetalleAuditoria = () => {
   const openEditFinding = (finding) => {
     setSelectedFindingId(finding.id);
     setEditFindingForm({
-      description: finding.description,
-      location: finding.location,
-      status: finding.status,
+      description: finding.description || "",
+      location: finding.location || "",
+      status: finding.status || "",
       level: finding.level || "A",
-      reference_to_the_standard:finding.reference_to_the_standard
+      reference_to_the_standard: finding.reference_to_the_standard || "",
+      finding_category: finding.finding_category || "Condición Insegura",
+      corrective_action: finding.corrective_action || "",
+      conclusion_date: finding.conclusion_date ? finding.conclusion_date.split("T")[0] : ""
     });
     setShowEditFindingModal(true);
   };
@@ -387,6 +394,33 @@ const DetalleAuditoria = () => {
       alert("Error al actualizar el hallazgo");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDeleteFinding = (id) => {
+    setFindingToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteFinding = async () => {
+    if (!findingToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteFinding(findingToDelete);
+      setBulkSuccessMsg("Hallazgo eliminado con éxito.");
+      setShowDeleteConfirm(false);
+      setFindingToDelete(null);
+      const updatedFindings = await getFindingsByAuditId(id);
+      setFindings(updatedFindings.length > 0 ? updatedFindings : DEMO_FINDINGS.filter(f => String(f.id_audit) === String(id)));
+    } catch (err) {
+      console.error("Error deleting finding:", err);
+      setBulkErrorMsg("Error al eliminar el hallazgo.");
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => {
+        setBulkSuccessMsg("");
+        setBulkErrorMsg("");
+      }, 5000);
     }
   };
 
@@ -560,7 +594,7 @@ const DetalleAuditoria = () => {
                   <th>Referencia Norma</th>
                   <th>Nivel</th>
                   <th>Estatus</th>
-                  <th style={{ textAlign: 'center' }}>Editar</th>
+                  <th style={{ textAlign: 'center' }}>{role === "Security" ? "Acciones" : "Editar"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -608,13 +642,35 @@ const DetalleAuditoria = () => {
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <button
-                          className="btn-edit"
-                          onClick={() => openEditFinding(f)}
-                          style={{ padding: '4px 8px', fontSize: '0.85rem' }}
-                        >
-                          ✏️
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                          <button
+                            className="btn-edit"
+                            onClick={() => openEditFinding(f)}
+                            style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                          >
+                            ✏️
+                          </button>
+                          {role === "Security" && (
+                            <button
+                              className="btn-delete"
+                              onClick={() => confirmDeleteFinding(f.id)}
+                              style={{ 
+                                padding: '4px 8px', 
+                                fontSize: '0.85rem',
+                                background: '#E53935',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                transition: 'opacity 0.2s'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                              onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -676,7 +732,8 @@ const DetalleAuditoria = () => {
                     <textarea 
                       value={editFindingForm.description} 
                       onChange={(e) => setEditFindingForm({...editFindingForm, description: e.target.value})} 
-                      required 
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
                       rows={3}
                     />
                   </div>
@@ -686,7 +743,8 @@ const DetalleAuditoria = () => {
                       type="text" 
                       value={editFindingForm.location} 
                       onChange={(e) => setEditFindingForm({...editFindingForm, location: e.target.value})} 
-                      required 
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
                     />
                   </div>
                   <div className="form-group">
@@ -695,7 +753,8 @@ const DetalleAuditoria = () => {
                       type="text" 
                       value={editFindingForm.reference_to_the_standard} 
                       onChange={(e) => setEditFindingForm({...editFindingForm, reference_to_the_standard: e.target.value})} 
-                      required 
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
                     />
                   </div>
                   <div className="form-group">
@@ -703,7 +762,8 @@ const DetalleAuditoria = () => {
                     <select 
                       value={editFindingForm.level} 
                       onChange={(e) => setEditFindingForm({...editFindingForm, level: e.target.value})} 
-                      required
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
                     >
                       <option value="A">A</option>
                       <option value="B">B</option>
@@ -712,11 +772,25 @@ const DetalleAuditoria = () => {
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Categoría</label>
+                    <select 
+                      value={editFindingForm.finding_category} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, finding_category: e.target.value})} 
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
+                    >
+                      <option value="Acto Inseguro">Acto Inseguro</option>
+                      <option value="Condición Insegura">Condición Insegura</option>
+                      <option value="Condición NG">Condición NG</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
                     <label>Estatus</label>
                     <select 
                       value={editFindingForm.status} 
                       onChange={(e) => setEditFindingForm({...editFindingForm, status: e.target.value})} 
-                      required
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor" || role === "Security"}
                     >
                       {role === "Security" ? (
                         <>
@@ -739,6 +813,24 @@ const DetalleAuditoria = () => {
                         </>
                       )}
                     </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Acción Correctiva</label>
+                    <textarea 
+                      value={editFindingForm.corrective_action} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, corrective_action: e.target.value})} 
+                      disabled={role === "Security"}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Fecha de Conclusión</label>
+                    <input 
+                      type="date" 
+                      value={editFindingForm.conclusion_date} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, conclusion_date: e.target.value})} 
+                      disabled={role === "Security"}
+                    />
                   </div>
                 </div>
               </div>
@@ -811,6 +903,19 @@ const DetalleAuditoria = () => {
                       <option value="Otros">Otros</option>
                     </select>
                   </div>
+                  <div className="form-group">
+                    <label>Categoría</label>
+                    <select 
+                      name="finding_category" 
+                      value={findingForm.finding_category} 
+                      onChange={(e) => setFindingForm(p => ({...p, finding_category: e.target.value}))} 
+                      required
+                    >
+                      <option value="Acto Inseguro">Acto Inseguro</option>
+                      <option value="Condición Insegura">Condición Insegura</option>
+                      <option value="Condición NG">Condición NG</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -820,6 +925,35 @@ const DetalleAuditoria = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Finding Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Eliminación</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                ¿Estás seguro de eliminar este hallazgo?
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{ background: '#E53935', color: 'white' }}
+                  onClick={handleDeleteFinding}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Eliminando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
