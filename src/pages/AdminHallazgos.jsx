@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getAllFindings, updateFinding, getPlants, getAreas, getUsers } from "../services/findingService";
+import { getAllFindings, updateFinding, deleteFinding, getPlants, getAreas, getUsers } from "../services/findingService";
 import "../App.css";
 
 const CATEGORY_OPTIONS = [
@@ -60,6 +60,9 @@ const AdminHallazgos = () => {
   const [bulkSuccessMsg, setBulkSuccessMsg] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [actionType, setActionType] = useState(""); // "Enviar", "Cerrar", "Rechazar"
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [findingToDelete, setFindingToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Role and UserId
   const role = localStorage.getItem("role");
@@ -345,6 +348,32 @@ const AdminHallazgos = () => {
     setEditForm({});
   };
 
+  const confirmDeleteFinding = (id) => {
+    setFindingToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteFinding = async () => {
+    if (!findingToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteFinding(findingToDelete);
+      setSuccessMsg("Hallazgo eliminado con éxito.");
+      setShowDeleteConfirm(false);
+      setFindingToDelete(null);
+      await fetchFindings();
+    } catch (err) {
+      console.error("Error deleting finding:", err);
+      setError("Error al eliminar el hallazgo.");
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => {
+        setSuccessMsg("");
+        setError("");
+      }, 5000);
+    }
+  };
+
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
@@ -615,7 +644,7 @@ const AdminHallazgos = () => {
                   <th>Acción Correctiva</th>
                   <th>Auditoría</th>
                   <th>Conclusión</th>
-                  <th>Editar</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -678,12 +707,35 @@ const AdminHallazgos = () => {
                         <td>{f.id_audit || "—"}</td>
                         <td>{formatDate(f.conclusion_date)}</td>
                         <td>
-                          <button
-                            className="btn-edit"
-                            onClick={() => startEdit(f)}
-                          >
-                            ✏️ Editar
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                            <button
+                              className="btn-edit"
+                              onClick={() => startEdit(f)}
+                              style={{ padding: '6px 12px', fontSize: '0.9rem' }}
+                            >
+                              ✏️ Editar
+                            </button>
+                            {role === "Admin" && (
+                              <button
+                                className="btn-delete"
+                                onClick={() => confirmDeleteFinding(f.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '0.9rem',
+                                  background: '#E53935',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'opacity 0.2s'
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -915,6 +967,35 @@ const AdminHallazgos = () => {
               >
                 Confirmar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Finding Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="popup" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Eliminación</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                ¿Estás seguro de eliminar este hallazgo?
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{ background: '#E53935', color: 'white' }}
+                  onClick={handleDeleteFinding}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Eliminando..." : "Confirmar"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
