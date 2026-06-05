@@ -51,6 +51,11 @@ const HallazgosQueReporte = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [auditFilter, setAuditFilter] = useState("todos");
   
+  // States for delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [findingToDelete, setFindingToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Catalogs for names mapping
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -232,20 +237,29 @@ const HallazgosQueReporte = () => {
     }
   };
 
-  // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Está seguro de que desea eliminar este hallazgo?")) {
-      return;
-    }
+  // Open Delete Confirmation Dialog
+  const handleDeleteClick = (id) => {
+    setFindingToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  // Execute deletion
+  const handleDeleteFinding = async () => {
+    if (!findingToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteFinding(id);
+      await deleteFinding(findingToDelete);
       // Actualizar la lista inmediatamente sin recargar la página
-      setFindings((prev) => prev.filter((f) => f.id !== id));
+      setFindings((prev) => prev.filter((f) => f.id !== findingToDelete));
       setSuccessMsg("Hallazgo eliminado con éxito");
+      setShowDeleteConfirm(false);
+      setFindingToDelete(null);
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
       console.error("Error deleting finding:", err);
       alert("Error al intentar eliminar el hallazgo.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -402,13 +416,34 @@ const HallazgosQueReporte = () => {
                           >
                             ✏️ Editar
                           </button>
-                          <button
-                            className="btn-reject"
-                            onClick={() => handleDelete(f.id)}
-                            style={{ padding: '6px 10px', fontSize: '0.85rem', background: '#E53935', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                          >
-                            🗑️ Eliminar
-                          </button>
+                           <button
+                             className="btn-reject"
+                             onClick={() => handleDeleteClick(f.id)}
+                             disabled={f.status?.toLowerCase() !== "abierto"}
+                             style={{ 
+                               padding: '6px 10px', 
+                               fontSize: '0.85rem', 
+                               background: f.status?.toLowerCase() === "abierto" ? '#E53935' : '#757575', 
+                               color: '#fff', 
+                               border: 'none', 
+                               borderRadius: '4px', 
+                               cursor: f.status?.toLowerCase() === "abierto" ? 'pointer' : 'not-allowed',
+                               opacity: f.status?.toLowerCase() === "abierto" ? '1' : '0.5',
+                               transition: 'opacity 0.2s'
+                             }}
+                             onMouseOver={(e) => {
+                               if (f.status?.toLowerCase() === "abierto") {
+                                 e.currentTarget.style.opacity = '0.8';
+                               }
+                             }}
+                             onMouseOut={(e) => {
+                               if (f.status?.toLowerCase() === "abierto") {
+                                 e.currentTarget.style.opacity = '1';
+                               }
+                             }}
+                           >
+                             🗑️ Eliminar
+                           </button>
                         </div>
                       </td>
                     </tr>
@@ -508,6 +543,35 @@ const HallazgosQueReporte = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Finding Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="popup" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Eliminación</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                ¿Estás seguro de eliminar este hallazgo?
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{ background: '#E53935', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
+                  onClick={handleDeleteFinding}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Eliminando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

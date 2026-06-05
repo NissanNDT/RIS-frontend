@@ -654,18 +654,28 @@ const DetalleAuditoria = () => {
                             <button
                               className="btn-delete"
                               onClick={() => confirmDeleteFinding(f.id)}
+                              disabled={f.status?.toLowerCase() !== "abierto"}
                               style={{ 
                                 padding: '4px 8px', 
                                 fontSize: '0.85rem',
-                                background: '#E53935',
+                                background: f.status?.toLowerCase() === "abierto" ? '#E53935' : '#757575',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                cursor: 'pointer',
+                                cursor: f.status?.toLowerCase() === "abierto" ? 'pointer' : 'not-allowed',
+                                opacity: f.status?.toLowerCase() === "abierto" ? '1' : '0.5',
                                 transition: 'opacity 0.2s'
                               }}
-                              onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
-                              onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                              onMouseOver={(e) => {
+                                if (f.status?.toLowerCase() === "abierto") {
+                                  e.currentTarget.style.opacity = '0.8';
+                                }
+                              }}
+                              onMouseOut={(e) => {
+                                if (f.status?.toLowerCase() === "abierto") {
+                                  e.currentTarget.style.opacity = '1';
+                                }
+                              }}
                             >
                               🗑️ Eliminar
                             </button>
