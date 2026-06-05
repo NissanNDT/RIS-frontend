@@ -2193,7 +2193,7 @@ const LlenadoFormatoIncidente = () => {
                                 onChange={(e) => handleParticipantChange(idx, e)}
                               >
                                 <option value="">-- Seleccione --</option>
-                                <option value="Trabajador">Participante</option>
+                                <option value="Trabajador">Trabajador</option>
                                 <option value="Parte interesada pertinente">Parte interesada pertinente</option>
                                 <option value="Representante de los trabajadores">Representante de los trabajadores</option>
                               </select>
