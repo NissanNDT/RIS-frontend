@@ -49,6 +49,7 @@ const HallazgosQueReporte = () => {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [auditFilter, setAuditFilter] = useState("todos");
   
   // Catalogs for names mapping
   const [plants, setPlants] = useState([]);
@@ -59,6 +60,7 @@ const HallazgosQueReporte = () => {
   const storedUser = localStorage.getItem("user");
   const loggedInUser = storedUser ? JSON.parse(storedUser) : null;
   const loggedInUserName = loggedInUser ? loggedInUser.name : "";
+  const role = localStorage.getItem("role") || "";
 
   useEffect(() => {
     fetchData();
@@ -137,9 +139,18 @@ const HallazgosQueReporte = () => {
         !filterStatus ||
         normalizeStr(f.status) === normalizeStr(filterStatus);
 
-      return matchesUser && matchSearch && matchCategory && matchStatus;
+      let matchAudit = true;
+      if (role === "Security") {
+        if (auditFilter === "con_auditoria") {
+          matchAudit = f.id_audit !== null && f.id_audit !== undefined && String(f.id_audit).trim() !== "";
+        } else if (auditFilter === "sin_auditoria") {
+          matchAudit = f.id_audit === null || f.id_audit === undefined || String(f.id_audit).trim() === "";
+        }
+      }
+
+      return matchesUser && matchSearch && matchCategory && matchStatus && matchAudit;
     });
-  }, [findings, loggedInUserName, search, filterCategory, filterStatus]);
+  }, [findings, loggedInUserName, search, filterCategory, filterStatus, role, auditFilter]);
 
   // Map category to backend format
   const mapCategoryToBackend = (val) => {
@@ -291,6 +302,20 @@ const HallazgosQueReporte = () => {
               ))}
             </select>
           </div>
+          {role === "Security" && (
+            <div className="filter-group">
+              <label htmlFor="filter-audit">Auditoría</label>
+              <select
+                id="filter-audit"
+                value={auditFilter}
+                onChange={(e) => setAuditFilter(e.target.value)}
+              >
+                <option value="todos">Todos</option>
+                <option value="con_auditoria">Con auditoría</option>
+                <option value="sin_auditoria">Sin auditoría</option>
+              </select>
+            </div>
+          )}
           <div className="filter-group filter-count">
             <span className="count-badge">{filteredFindings.length}</span>
             <span>resultados</span>
