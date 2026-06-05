@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllIncidents, updateIncident, deleteIncident } from "../services/incidentService";
+import { getAllIncidents, updateIncident, deleteIncident, getIncidentFormatByIncident } from "../services/incidentService";
 import { getPlants, getAreas, getUsers } from "../services/findingService";
+import XLSX from "xlsx-js-style";
 import api from "../api/axios";
 import "../App.css";
 import "../styles/AdminIncidentes.css";
@@ -85,6 +86,7 @@ const AdminIncidentes = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [incidentToDelete, setIncidentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   /* fetch */
   useEffect(() => {
@@ -279,6 +281,405 @@ const AdminIncidentes = () => {
     }
   };
 
+  /* ── Export to Excel ──────────────────────────────────────── */
+  const handleExportAllIncidents = async () => {
+    try {
+      setExporting(true);
+      setSuccessMsg("Obteniendo datos de formato para todos los incidentes...");
+
+      const formatPromises = filteredIncidents.map(async (inc) => {
+        try {
+          const formatData = await getIncidentFormatByIncident(inc.id);
+          return { incidentId: inc.id, formatData };
+        } catch (err) {
+          return { incidentId: inc.id, formatData: null };
+        }
+      });
+
+      const formatsRes = await Promise.all(formatPromises);
+      const formatsMap = {};
+      formatsRes.forEach(({ incidentId, formatData }) => {
+        formatsMap[incidentId] = formatData;
+      });
+
+      setSuccessMsg("Generando archivo Excel... La descarga se iniciará automáticamente.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+
+      const dataToExport = filteredIncidents.map((inc) => {
+        const fmt = formatsMap[inc.id] || {};
+        return {
+          "Folio": inc.incident_folio || "—",
+          "Fecha": fmtDate(inc.date),
+          "Hora": inc.time || "—",
+          "Planta": getPlantName(inc.id_plant),
+          "Área": getAreaName(inc.id_area),
+          "Nivel": inc.level || "—",
+          "Ubicación": inc.location || "—",
+          "Tipo de Incidente": inc.incident_type || "—",
+          "Mecanismo": inc.incident_mechanism || "—",
+          "Lesión": inc.injury || "—",
+          "Causa Raíz": inc.root_cause || "—",
+          "Centro de Costo": getCostCenterName(inc.id_cost_center),
+          "Estatus": inc.status || "abierto",
+          "Responsable": getUserFullName(inc.id_responsible_user),
+          "Supervisor General": getUserFullName(inc.id_general_sv),
+          "Junior": getUserFullName(inc.id_junior),
+          "Acciones Inmediatas": inc.immediate_actions || "—",
+          "Acciones Correctivas": inc.corrective_actions || "—",
+          "Empleado Nombre": fmt.employee_name || "—",
+          "Empleado Edad": fmt.employee_age || "—",
+          "Empleado Nómina": fmt.employee_payroll_number || "—",
+          "Empleado Puesto": fmt.employee_position || "—",
+          "Empleado Departamento": fmt.employee_distribution || "—",
+          "Empleado Antigüedad": fmt.employee_seniority !== undefined && fmt.employee_seniority !== null ? `${fmt.employee_seniority} años` : "—",
+          "Empleado Antigüedad Puesto": fmt.employee_seniority_in_position !== undefined && fmt.employee_seniority_in_position !== null ? `${fmt.employee_seniority_in_position} años` : "—",
+          "Empleado Tipo": fmt.employee_type || "—",
+          "Turno Accidente": fmt.accident_shift || "—",
+          "Médico Atendió": fmt.attending_doctor || "—",
+          "Pronóstico Recuperación": fmt.recovery_forecast || "—",
+          "Antigüedad SV": fmt.sv_seniority !== undefined && fmt.sv_seniority !== null ? `${fmt.sv_seniority} años` : "—",
+          "Antigüedad SV Puesto": fmt.sv_seniority_in_position !== undefined && fmt.sv_seniority_in_position !== null ? `${fmt.sv_seniority_in_position} años` : "—",
+          "Personal a Cargo SV": fmt.number_of_staff_under_sv !== undefined && fmt.number_of_staff_under_sv !== null ? fmt.number_of_staff_under_sv : "—"
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+      const colWidths = Object.keys(dataToExport[0] || {}).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...dataToExport.map((row) => String(row[key] || "").length)
+        );
+        return { wch: Math.min(maxLength + 2, 45) };
+      });
+      worksheet["!cols"] = colWidths;
+
+      if (dataToExport.length > 0) {
+        const lastColIndex = Object.keys(dataToExport[0]).length - 1;
+        worksheet["!autofilter"] = {
+          ref: XLSX.utils.encode_range({
+            s: { r: 0, c: 0 },
+            e: { r: dataToExport.length, c: lastColIndex }
+          })
+        };
+
+        const range = XLSX.utils.decode_range(worksheet["!ref"]);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!worksheet[cell_address]) continue;
+            
+            const cell = worksheet[cell_address];
+            
+            cell.s = {
+              font: { name: "Segoe UI", sz: 10 },
+              alignment: { vertical: "center", wrapText: true },
+              border: {
+                top: { style: "thin", color: { rgb: "E2E8F0" } },
+                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                left: { style: "thin", color: { rgb: "E2E8F0" } },
+                right: { style: "thin", color: { rgb: "E2E8F0" } }
+              }
+            };
+
+            if (R === 0) {
+              cell.s.fill = { fgColor: { rgb: "1F4E79" } };
+              cell.s.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+              cell.s.alignment = { horizontal: "center", vertical: "center", wrapText: true };
+            } else {
+              if (R % 2 === 0) {
+                cell.s.fill = { fgColor: { rgb: "F8FAFC" } };
+              }
+
+              const centerCols = [0, 1, 2, 5, 12, 26];
+              if (centerCols.includes(C)) {
+                cell.s.alignment.horizontal = "center";
+              } else {
+                cell.s.alignment.horizontal = "left";
+              }
+
+              if (C === 12) {
+                const statusVal = String(cell.v || "").toLowerCase();
+                if (statusVal === "abierto") {
+                  cell.s.fill = { fgColor: { rgb: "FDE8E8" } };
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "9B1C1C" } };
+                } else if (statusVal === "cerrado") {
+                  cell.s.fill = { fgColor: { rgb: "DEF7EC" } };
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "03543F" } };
+                } else if (statusVal.includes("investigacion")) {
+                  cell.s.fill = { fgColor: { rgb: "FEF3C7" } };
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "92400E" } };
+                }
+              }
+
+              if (C === 5) {
+                const lvlVal = String(cell.v || "");
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true };
+                if (lvlVal === "G") cell.s.font.color = { rgb: "43A047" };
+                else if (lvlVal === "U") cell.s.font.color = { rgb: "FFB300" };
+                else if (lvlVal === "R") cell.s.font.color = { rgb: "FB8C00" };
+                else if (lvlVal === "FR1" || lvlVal === "FR0") cell.s.font.color = { rgb: "E53935" };
+              }
+
+              if (C === 0) {
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "1F4E79" } };
+              }
+            }
+          }
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Incidentes");
+
+      const filename = `Incidentes_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error("Error exporting all incidents:", err);
+      setError("Error al exportar los incidentes a Excel.");
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportSingleIncident = async (inc) => {
+    try {
+      setSuccessMsg("Obteniendo datos del formato...");
+      let formatData = null;
+      try {
+        formatData = await getIncidentFormatByIncident(inc.id);
+      } catch (err) {
+        console.warn("No se encontró formato para este incidente o hubo un error:", err);
+      }
+
+      setSuccessMsg("Generando archivo Excel... La descarga se iniciará automáticamente.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+
+      const ws_data = [];
+
+      // SECTION 1: DATOS DEL INCIDENTE
+      ws_data.push(["DATOS DEL INCIDENTE", "", "", "", "", "", "", "", "", ""]);
+      ws_data.push([
+        "Folio",
+        "Fecha",
+        "Hora",
+        "Planta",
+        "Área",
+        "Nivel",
+        "Ubicación",
+        "Tipo de Incidente",
+        "Centro de Costo",
+        "Estatus"
+      ]);
+      ws_data.push([
+        inc.incident_folio || "—",
+        fmtDate(inc.date),
+        inc.time || "—",
+        getPlantName(inc.id_plant),
+        getAreaName(inc.id_area),
+        inc.level || "—",
+        inc.location || "—",
+        inc.incident_type || "—",
+        getCostCenterName(inc.id_cost_center),
+        inc.status || "abierto"
+      ]);
+
+      ws_data.push([
+        "Mecanismo",
+        "Lesión",
+        "Causa Raíz",
+        "Responsable",
+        "SV General",
+        "Junior",
+        "Acciones Inmediatas",
+        "Acciones Correctivas",
+        "",
+        ""
+      ]);
+      ws_data.push([
+        inc.incident_mechanism || "—",
+        inc.injury || "—",
+        inc.root_cause || "—",
+        getUserFullName(inc.id_responsible_user),
+        getUserFullName(inc.id_general_sv),
+        getUserFullName(inc.id_junior),
+        inc.immediate_actions || "—",
+        inc.corrective_actions || "—",
+        "",
+        ""
+      ]);
+
+      ws_data.push([]);
+      ws_data.push([]);
+
+      // SECTION 2: DATOS DEL FORMATO DE DETALLE
+      ws_data.push(["DATOS DEL FORMATO DE INCIDENTE", "", "", "", "", "", "", "", "", ""]);
+      ws_data.push([
+        "Nombre Empleado",
+        "Edad",
+        "Número Nómina",
+        "Puesto",
+        "Departamento",
+        "Antigüedad",
+        "Antigüedad Puesto",
+        "Tipo Empleado",
+        "Turno",
+        "Médico Atendió"
+      ]);
+
+      if (formatData) {
+        ws_data.push([
+          formatData.employee_name || "—",
+          formatData.employee_age || "—",
+          formatData.employee_payroll_number || "—",
+          formatData.employee_position || "—",
+          formatData.employee_distribution || "—",
+          formatData.employee_seniority !== null ? `${formatData.employee_seniority} años` : "—",
+          formatData.employee_seniority_in_position !== null ? `${formatData.employee_seniority_in_position} años` : "—",
+          formatData.employee_type || "—",
+          formatData.accident_shift || "—",
+          formatData.attending_doctor || "—"
+        ]);
+
+        ws_data.push([
+          "Antigüedad SV",
+          "Antigüedad SV en Puesto",
+          "Personal a Cargo SV",
+          "Pronóstico Recuperación",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]);
+        ws_data.push([
+          formatData.sv_seniority !== null ? `${formatData.sv_seniority} años` : "—",
+          formatData.sv_seniority_in_position !== null ? `${formatData.sv_seniority_in_position} años` : "—",
+          formatData.number_of_staff_under_sv !== null ? formatData.number_of_staff_under_sv : "—",
+          formatData.recovery_forecast || "—",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]);
+      } else {
+        ws_data.push(["No se ha completado el formato detallado para este incidente.", "", "", "", "", "", "", "", "", ""]);
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
+
+      worksheet["!merges"] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+        { s: { r: 7, c: 0 }, e: { r: 7, c: 9 } }
+      ];
+      if (!formatData) {
+        worksheet["!merges"].push({ s: { r: 9, c: 0 }, e: { r: 9, c: 9 } });
+      }
+
+      const colWidths = Array(10).fill(null).map((_, colIdx) => {
+        let maxLen = 10;
+        ws_data.forEach((row, rowIdx) => {
+          if (rowIdx === 0 || rowIdx === 7) return;
+          const val = row[colIdx];
+          if (val) maxLen = Math.max(maxLen, String(val).length);
+        });
+        return { wch: Math.min(maxLen + 3, 40) };
+      });
+      worksheet["!cols"] = colWidths;
+
+      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+      const baseBorder = {
+        top: { style: "thin", color: { rgb: "E2E8F0" } },
+        bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+        left: { style: "thin", color: { rgb: "E2E8F0" } },
+        right: { style: "thin", color: { rgb: "E2E8F0" } }
+      };
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[cell_address]) continue;
+          const cell = worksheet[cell_address];
+
+          cell.s = {
+            font: { name: "Segoe UI", sz: 10 },
+            alignment: { vertical: "center", wrapText: true },
+            border: baseBorder
+          };
+
+          if (R === 0 || R === 7) {
+            cell.s.fill = { fgColor: { rgb: "1F4E79" } };
+            cell.s.font = { name: "Segoe UI", sz: 12, bold: true, color: { rgb: "FFFFFF" } };
+            cell.s.alignment = { horizontal: "center", vertical: "center" };
+            cell.s.border = {};
+          } 
+          else if (R === 1 || R === 3 || R === 8 || R === 10) {
+            cell.s.fill = { fgColor: { rgb: "F1F5F9" } };
+            cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "334155" } };
+            cell.s.alignment.horizontal = "center";
+          }
+          else if (R === 2 || R === 4 || R === 9 || R === 11) {
+            if (R === 4 || R === 11) {
+              cell.s.fill = { fgColor: { rgb: "F8FAFC" } };
+            }
+            
+            const centerCols = [0, 1, 2, 5, 8, 9];
+            if (centerCols.includes(C)) {
+              cell.s.alignment.horizontal = "center";
+            } else {
+              cell.s.alignment.horizontal = "left";
+            }
+
+            if (R === 2 && C === 9) {
+              const statusVal = String(cell.v || "").toLowerCase();
+              if (statusVal === "abierto") {
+                cell.s.fill = { fgColor: { rgb: "FDE8E8" } };
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "9B1C1C" } };
+              } else if (statusVal === "cerrado") {
+                cell.s.fill = { fgColor: { rgb: "DEF7EC" } };
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "03543F" } };
+              } else if (statusVal.includes("investigacion")) {
+                cell.s.fill = { fgColor: { rgb: "FEF3C7" } };
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "92400E" } };
+              }
+            }
+
+            if (R === 2 && C === 5) {
+              const lvlVal = String(cell.v || "");
+              cell.s.font = { name: "Segoe UI", sz: 10, bold: true };
+              if (lvlVal === "G") cell.s.font.color = { rgb: "43A047" };
+              else if (lvlVal === "U") cell.s.font.color = { rgb: "FFB300" };
+              else if (lvlVal === "R") cell.s.font.color = { rgb: "FB8C00" };
+              else if (lvlVal === "FR1" || lvlVal === "FR0") cell.s.font.color = { rgb: "E53935" };
+            }
+
+            if (R === 2 && C === 0) {
+              cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "1F4E79" } };
+            }
+          }
+          else if (R === 9 && !formatData) {
+            cell.s.font = { name: "Segoe UI", sz: 10, italic: true, color: { rgb: "64748B" } };
+            cell.s.alignment.horizontal = "center";
+          }
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Detalle Incidente");
+
+      const filename = `Incidente_${inc.incident_folio || inc.id}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error("Error exporting incident details:", err);
+      setError("Error al generar la exportación del incidente.");
+      setTimeout(() => setError(""), 5000);
+    }
+  };
+
   /* ── PDF / Print ─────────────────────────────────────────── */
   const printIncident = (inc) => {
     const win = window.open("", "_blank", "width=900,height=700");
@@ -382,9 +783,26 @@ const AdminIncidentes = () => {
             <h1>Administración de Incidentes</h1>
             <p className="ai-subtitle">Gestiona, investiga y da seguimiento a todos los incidentes registrados.</p>
           </div>
-          <button id="ai-btn-new" className="ai-btn-new" onClick={goToForm}>
-            + Nuevo Reporte
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleExportAllIncidents}
+              className="btn-save animate-in"
+              disabled={filteredIncidents.length === 0 || exporting}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                background: 'linear-gradient(135deg, #1D6F42, #105B34)', 
+                border: 'none',
+                padding: '10px 20px',
+              }}
+            >
+              {exporting ? "Exportando..." : "📥 Exportar a Excel"}
+            </button>
+            <button id="ai-btn-new" className="ai-btn-new" onClick={goToForm}>
+              + Nuevo Reporte
+            </button>
+          </div>
         </div>
 
         {/* Success */}
@@ -513,6 +931,14 @@ const AdminIncidentes = () => {
                         >
                           📄 Formato
                         </button>
+                        <button
+                          className="btn-edit"
+                          style={{ backgroundColor: 'rgba(29, 111, 66, 0.1)', color: '#1D6F42', border: '1px solid rgba(29, 111, 66, 0.2)' }}
+                          onClick={() => handleExportSingleIncident(inc)}
+                          title="Exportar a Excel"
+                        >
+                          📥 Excel
+                        </button>
                         {role === "Admin" && (
                           <button
                             className="btn-edit"
@@ -584,6 +1010,13 @@ const AdminIncidentes = () => {
             <div className="ai-detail-footer">
               <button className="btn-edit ai-btn-print" onClick={() => printIncident(detailItem)}>
                 🖨️ Generar Formato
+              </button>
+              <button 
+                className="btn-edit" 
+                style={{ backgroundColor: 'rgba(29, 111, 66, 0.1)', color: '#1D6F42', border: '1px solid rgba(29, 111, 66, 0.2)' }}
+                onClick={() => handleExportSingleIncident(detailItem)}
+              >
+                📥 Exportar Excel
               </button>
               <button className="btn-cancel" onClick={() => setDetailId(null)}>Cerrar</button>
             </div>

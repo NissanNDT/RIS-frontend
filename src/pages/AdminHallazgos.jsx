@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { getAllFindings, updateFinding, deleteFinding, getPlants, getAreas, getUsers } from "../services/findingService";
+import XLSX from "xlsx-js-style";
 import "../App.css";
+
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "Todas" },
@@ -63,6 +65,7 @@ const AdminHallazgos = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [findingToDelete, setFindingToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Role and UserId
   const role = localStorage.getItem("role");
@@ -314,6 +317,130 @@ const AdminHallazgos = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    try {
+      setExporting(true);
+      setSuccessMsg("Generando archivo Excel... La descarga se iniciará automáticamente.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+
+      const dataToExport = filteredFindings.map((f) => ({
+        "ID": f.id,
+        "Descripción": f.description || "",
+        "Ubicación": f.location || "",
+        "Categoría": f.finding_category || "",
+        "Nivel": f.level || "",
+        "Estatus": f.status || "",
+        "Planta": getPlantName(f.id_plant),
+        "Área": getAreaName(f.id_area),
+        "Responsable": getUserFullName(f.id_responsible_user),
+        "Fecha de Verificación": formatDate(f.verification_date),
+        "Acción Correctiva": f.corrective_action || "",
+        "ID de Auditoría": f.id_audit || "—",
+        "Fecha de Conclusión": formatDate(f.conclusion_date),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      
+      const colWidths = Object.keys(dataToExport[0] || {}).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...dataToExport.map((row) => String(row[key] || "").length)
+        );
+        return { wch: Math.min(maxLength + 2, 50) };
+      });
+      worksheet["!cols"] = colWidths;
+
+      if (dataToExport.length > 0) {
+        const lastColIndex = Object.keys(dataToExport[0]).length - 1;
+        worksheet["!autofilter"] = {
+          ref: XLSX.utils.encode_range({
+            s: { r: 0, c: 0 },
+            e: { r: dataToExport.length, c: lastColIndex }
+          })
+        };
+
+        // Style the worksheet cells beautifully
+        const range = XLSX.utils.decode_range(worksheet["!ref"]);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!worksheet[cell_address]) continue;
+            
+            const cell = worksheet[cell_address];
+            
+            // Base style
+            cell.s = {
+              font: { name: "Segoe UI", sz: 10 },
+              alignment: { vertical: "center", wrapText: true },
+              border: {
+                top: { style: "thin", color: { rgb: "E2E8F0" } },
+                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                left: { style: "thin", color: { rgb: "E2E8F0" } },
+                right: { style: "thin", color: { rgb: "E2E8F0" } }
+              }
+            };
+
+            if (R === 0) {
+              // Header styles (Premium Slate Blue)
+              cell.s.fill = { fgColor: { rgb: "1F4E79" } };
+              cell.s.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+              cell.s.alignment = { horizontal: "center", vertical: "center", wrapText: true };
+            } else {
+              // Data rows styles
+              // Zebra striping
+              if (R % 2 === 0) {
+                cell.s.fill = { fgColor: { rgb: "F8FAFC" } };
+              }
+
+              // Column alignments: ID (0), Nivel (4), Estatus (5), Fecha Verificación (9), Auditoría (11), Conclusión (12)
+              const centerCols = [0, 4, 5, 9, 11, 12];
+              if (centerCols.includes(C)) {
+                cell.s.alignment.horizontal = "center";
+              } else {
+                cell.s.alignment.horizontal = "left";
+              }
+
+              // Status badges colors matching UI
+              if (C === 5) {
+                const statusVal = String(cell.v || "").toLowerCase();
+                if (statusVal === "abierto") {
+                  cell.s.fill = { fgColor: { rgb: "FDE8E8" } }; // Light red
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "9B1C1C" } };
+                } else if (statusVal === "cerrado") {
+                  cell.s.fill = { fgColor: { rgb: "DEF7EC" } }; // Light green
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "03543F" } };
+                } else if (statusVal.includes("revision")) {
+                  cell.s.fill = { fgColor: { rgb: "FEF3C7" } }; // Light orange
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "92400E" } };
+                } else if (statusVal === "rechazado") {
+                  cell.s.fill = { fgColor: { rgb: "F3F4F6" } }; // Light gray
+                  cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "374151" } };
+                }
+              }
+
+              // Bold ID Column
+              if (C === 0) {
+                cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "1F4E79" } };
+              }
+            }
+          }
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Hallazgos");
+
+      const filename = `Hallazgos_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error("Error exporting to Excel:", err);
+      setError("Error al exportar los datos a Excel.");
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Edit handlers
   const changeFindingStatus = (id, newStatus) => {
     setFindings((prevFindings) =>
@@ -432,7 +559,24 @@ const AdminHallazgos = () => {
   return (
     <div className="admin-page">
       <div className="admin-container">
-        <h1 className="animate-in">Administración de Hallazgos</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+          <h1 className="animate-in" style={{ margin: 0, textAlign: 'left' }}>Administración de Hallazgos</h1>
+          <button
+            onClick={handleExportExcel}
+            className="btn-save animate-in"
+            disabled={filteredFindings.length === 0 || exporting}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              background: 'linear-gradient(135deg, #1D6F42, #105B34)', 
+              border: 'none',
+              padding: '10px 20px',
+            }}
+          >
+            {exporting ? "Exportando..." : "📥 Exportar a Excel"}
+          </button>
+        </div>
 
         {/* Success message */}
         {successMsg && (
