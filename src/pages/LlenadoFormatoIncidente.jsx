@@ -166,6 +166,8 @@ const LlenadoFormatoIncidente = () => {
     negligence_type: "",
     labor_report: ""
   });
+  const [hazardBackgroundList, setHazardBackgroundList] = useState([]);
+  const [isCreatingHazardBackground, setIsCreatingHazardBackground] = useState(false);
   const [hbStatus, setHbStatus] = useState(null);       // null | "success" | "error"
   const [hbMessage, setHbMessage] = useState("");
   const [hbLoading, setHbLoading] = useState(false);
@@ -381,6 +383,9 @@ const LlenadoFormatoIncidente = () => {
   };
 
   const toggleSection = (section) => {
+    if (!formatExists && section !== "incident" && section !== "incident_format") {
+      return;
+    }
     setOpenSections((prev) => ({
       ...prev,
       [section]: !prev[section],
@@ -471,8 +476,10 @@ const LlenadoFormatoIncidente = () => {
 
     setHbLoading(true);
     getHazardBackgroundByIncidentFormat(incidentFormatId)
-      .then((rows) => {
-        if (rows && rows.length > 0) {
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
+        setHazardBackgroundList(rows);
+        if (rows.length > 0) {
           const record = rows[0];
           setHazardBackground({
             id: record.id,
@@ -489,6 +496,23 @@ const LlenadoFormatoIncidente = () => {
             genba_dojo_reception_date: record.genba_dojo_reception_date ? record.genba_dojo_reception_date.substring(0, 10) : "",
             negligence_type: record.negligence_type || "",
             labor_report: record.labor_report !== null && record.labor_report !== undefined ? String(record.labor_report) : ""
+          });
+          setIsCreatingHazardBackground(false);
+        } else {
+          setHazardBackground({
+            id_incident_format: incidentFormatId,
+            previous_fr1_incidents_presented: "",
+            existing_processes_or_areas_potential_for_incident: "",
+            processes_or_areas_potential_for_incident: "",
+            risk_assessed_and_identified: "",
+            incident_category: "",
+            horizontal_review: "",
+            horizontal_review_comment: "",
+            new_risk_assessment_needed: "",
+            safety_dojo_reception_date: "",
+            genba_dojo_reception_date: "",
+            negligence_type: "",
+            labor_report: ""
           });
         }
       })
@@ -531,8 +555,9 @@ const LlenadoFormatoIncidente = () => {
         if (data && Object.keys(data).length > 0) {
           setFormData(prev => ({ ...prev, ...data }));
           // Guardar el PK para que el useEffect de factor_tree se dispare
-          if (data.id_incident_format) {
-            setIncidentFormatId(data.id_incident_format);
+          const formatId = data.id_incident_format || data.id;
+          if (formatId) {
+            setIncidentFormatId(formatId);
           }
           setFormatExists(true);
         } else {
@@ -592,17 +617,21 @@ const LlenadoFormatoIncidente = () => {
       if (formatExists) {
         const updated = await updateIncidentFormat(currentIncidentId, payload);
         // Mantener incidentFormatId sincronizado si el backend lo devuelve
-        if (updated?.id_incident_format) {
-          setIncidentFormatId(updated.id_incident_format);
+        const formatId = updated?.id_incident_format || updated?.id;
+        if (formatId) {
+          setIncidentFormatId(formatId);
         }
+        setFormData(prev => ({ ...prev, ...updated }));
         setSubmitStatus("success");
         setSubmitMessage(" Datos Generales actualizados correctamente.");
       } else {
         const created = await createIncidentFormat(payload);
         // Capturar el id_incident_format asignado por la base de datos
-        if (created?.id_incident_format) {
-          setIncidentFormatId(created.id_incident_format);
+        const formatId = created?.id_incident_format || created?.id;
+        if (formatId) {
+          setIncidentFormatId(formatId);
         }
+        setFormData(prev => ({ ...prev, ...created }));
         setFormatExists(true);
         setSubmitStatus("success");
         setSubmitMessage(" Datos Generales creados correctamente.");
@@ -794,6 +823,9 @@ const LlenadoFormatoIncidente = () => {
           genba_dojo_reception_date: updated.genba_dojo_reception_date ? updated.genba_dojo_reception_date.substring(0, 10) : "",
           labor_report: updated.labor_report !== null && updated.labor_report !== undefined ? String(updated.labor_report) : "",
         }));
+        const data = await getHazardBackgroundByIncidentFormat(idFormat);
+        const rows = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
+        setHazardBackgroundList(rows);
       } else {
         const created = await createHazardBackground(payload);
         setHazardBackground((prev) => ({
@@ -808,6 +840,10 @@ const LlenadoFormatoIncidente = () => {
           genba_dojo_reception_date: created.genba_dojo_reception_date ? created.genba_dojo_reception_date.substring(0, 10) : "",
           labor_report: created.labor_report !== null && created.labor_report !== undefined ? String(created.labor_report) : "",
         }));
+        setIsCreatingHazardBackground(false);
+        const data = await getHazardBackgroundByIncidentFormat(idFormat);
+        const rows = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
+        setHazardBackgroundList(rows);
       }
 
       setHbStatus("success");
@@ -990,8 +1026,8 @@ const LlenadoFormatoIncidente = () => {
 
   const handleGenerateExcel = async (e) => {
     e.preventDefault();
-    if (!currentIncidentId) {
-      alert("Primero debe guardar el Reporte del Incidente para generar el Excel.");
+    if (!formatExists) {
+      alert("Primero debe crear y guardar los Datos Generales del Formato.");
       return;
     }
     try {
@@ -1346,8 +1382,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 3. INCIDENT GRAPH SECTION ── */}
-        <div className={`lfi-card ${openSections.grafico ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("grafico")}>
+        <div className={`lfi-card ${openSections.grafico ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("grafico")} disabled={!formatExists}>
             <span className="lfi-card-title">
                3. Gráfico del Incidente
             </span>
@@ -1377,8 +1413,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 4. FACTOR TREE SECTION ── */}
-        <div className={`lfi-card ${openSections.factor_tree ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("factor_tree")}>
+        <div className={`lfi-card ${openSections.factor_tree ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("factor_tree")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               4. Árbol de Factores
@@ -1543,8 +1579,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 5. INTERVENING FACTORS SECTION ── */}
-        <div className={`lfi-card ${openSections.intervening_factors ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("intervening_factors")}>
+        <div className={`lfi-card ${openSections.intervening_factors ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("intervening_factors")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               5. Factores que Intervienen 
@@ -1616,8 +1652,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 6. HAZARD BACKGROUND SECTION ── */}
-        <div className={`lfi-card ${openSections.hazard_background ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("hazard_background")}>
+        <div className={`lfi-card ${openSections.hazard_background ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("hazard_background")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               6. Antecedentes de Peligro o Riesgo 
@@ -1628,6 +1664,16 @@ const LlenadoFormatoIncidente = () => {
             <div className="lfi-card-body">
               {hbLoading ? (
                 <div className="lfi-ft-loading">Cargando antecedentes...</div>
+              ) : hazardBackgroundList.length === 0 && !isCreatingHazardBackground ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => setIsCreatingHazardBackground(true)}
+                  >
+                     Crear Antecedente de Peligro
+                  </button>
+                </div>
               ) : (
                 <form onSubmit={handleSaveHazardBackground}>
                   <div className="lfi-form-grid">
@@ -1802,16 +1848,15 @@ const LlenadoFormatoIncidente = () => {
 
                   <div className="lfi-section-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
                     <button type="submit" className="btn-primary">
-                      Guardar Antecedentes de Peligro o Riesgo
+                      {hazardBackgroundList.length > 0 ? "Actualizar Antecedente de Peligro" : "Crear Antecedente de Peligro"}
                     </button>
-                    {hazardBackground.id && (
+                    {isCreatingHazardBackground && hazardBackgroundList.length === 0 && (
                       <button
                         type="button"
-                        className="btn-danger"
-                        style={{ backgroundColor: '#ff3b30', color: 'white', border: 'none', borderRadius: '4px', padding: '10px 20px', cursor: 'pointer', fontWeight: 'bold' }}
-                        onClick={handleDeleteHazardBackground}
+                        className="btn-secondary"
+                        onClick={() => setIsCreatingHazardBackground(false)}
                       >
-                        🗑️ Eliminar Antecedentes
+                        Cancelar
                       </button>
                     )}
                   </div>
@@ -1822,8 +1867,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 7. COUNTERMEASURE PLAN SECTION ── */}
-        <div className={`lfi-card ${openSections.contermeasure_plan ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("contermeasure_plan")}>
+        <div className={`lfi-card ${openSections.contermeasure_plan ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("contermeasure_plan")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               7. Plan de Contramedidas
@@ -2025,8 +2070,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 8. CONTROL HIERARCHY SECTION ── */}
-        <div className={`lfi-card ${openSections.control_hierarchy ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("control_hierarchy")}>
+        <div className={`lfi-card ${openSections.control_hierarchy ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("control_hierarchy")} disabled={!formatExists}>
             <span className="lfi-card-title">
             
               8. Jerarquía de Controles 
@@ -2060,8 +2105,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 9. VERIFICATION METHOD SECTION ── */}
-        <div className={`lfi-card ${openSections.verification_method ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("verification_method")}>
+        <div className={`lfi-card ${openSections.verification_method ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("verification_method")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               9. Métodos de Verificación
@@ -2112,8 +2157,8 @@ const LlenadoFormatoIncidente = () => {
         </div>
 
         {/* ── 10. ANALYSIS PARTICIPANT SECTION ── */}
-        <div className={`lfi-card ${openSections.analysis_participant ? "is-open" : ""}`}>
-          <button className="lfi-card-header" onClick={() => toggleSection("analysis_participant")}>
+        <div className={`lfi-card ${openSections.analysis_participant ? "is-open" : ""}`} style={!formatExists ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
+          <button className="lfi-card-header" onClick={() => toggleSection("analysis_participant")} disabled={!formatExists}>
             <span className="lfi-card-title">
               
               10. Participantes del Análisis 
