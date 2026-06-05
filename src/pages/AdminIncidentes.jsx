@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllIncidents, updateIncident } from "../services/incidentService";
+import { getAllIncidents, updateIncident, deleteIncident } from "../services/incidentService";
 import { getPlants, getAreas, getUsers } from "../services/findingService";
 import api from "../api/axios";
 import "../App.css";
@@ -82,6 +82,9 @@ const AdminIncidentes = () => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [detailId, setDetailId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [incidentToDelete, setIncidentToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /* fetch */
   useEffect(() => {
@@ -247,6 +250,32 @@ const AdminIncidentes = () => {
     } finally {
       setSaving(false);
       setTimeout(() => setSuccessMsg(""), 3000);
+    }
+  };
+
+  const confirmDeleteIncident = (id) => {
+    setIncidentToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteIncident = async () => {
+    if (!incidentToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteIncident(incidentToDelete);
+      setSuccessMsg("Incidente eliminado con éxito.");
+      setShowDeleteConfirm(false);
+      setIncidentToDelete(null);
+      await fetchData();
+    } catch (err) {
+      console.error("Error deleting incident:", err);
+      setError("Error al eliminar el incidente.");
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => {
+        setSuccessMsg("");
+        setError("");
+      }, 5000);
     }
   };
 
@@ -484,6 +513,16 @@ const AdminIncidentes = () => {
                         >
                           📄 Formato
                         </button>
+                        {role === "Admin" && (
+                          <button
+                            className="btn-edit"
+                            style={{ backgroundColor: 'rgba(229, 57, 53, 0.1)', color: '#E53935', border: '1px solid rgba(229, 57, 53, 0.2)' }}
+                            onClick={() => confirmDeleteIncident(inc.id)}
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -624,6 +663,35 @@ const AdminIncidentes = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Incident Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="popup" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Eliminación</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                ¿Estás seguro de eliminar este incidente? Esta acción también eliminará permanentemente el formato de incidente y todos sus registros relacionados.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{ background: '#E53935', color: 'white' }}
+                  onClick={handleDeleteIncident}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Eliminando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
