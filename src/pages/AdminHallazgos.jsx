@@ -54,6 +54,12 @@ const AdminHallazgos = () => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [filteredFindings, setFilteredFindings] = useState([]);
+  const [selectedFindings, setSelectedFindings] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkErrorMsg, setBulkErrorMsg] = useState("");
+  const [bulkSuccessMsg, setBulkSuccessMsg] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [actionType, setActionType] = useState(""); // "Enviar", "Cerrar", "Rechazar"
 
   // Role and UserId
   const role = localStorage.getItem("role");
@@ -205,6 +211,104 @@ const AdminHallazgos = () => {
     if (lower === "cerrado") return "Cerrado";
     if (lower === "rechazado") return "Rechazado";
     return val;
+  };
+
+  const isEligibleForBulkAction = (f) => {
+    if (role === "Supervisor") {
+      return f.status?.toLowerCase() === "abierto";
+    }
+    if (role === "Security") {
+      return true;
+    }
+    return false;
+  };
+
+  const eligibleVisibleFindings = useMemo(() => {
+    return filteredFindings.filter(isEligibleForBulkAction);
+  }, [filteredFindings, role]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const toAdd = eligibleVisibleFindings.map(f => f.id);
+      setSelectedFindings(prev => {
+        const next = new Set(prev);
+        toAdd.forEach(id => next.add(id));
+        return Array.from(next);
+      });
+    } else {
+      const toRemove = new Set(eligibleVisibleFindings.map(f => f.id));
+      setSelectedFindings(prev => prev.filter(id => !toRemove.has(id)));
+    }
+  };
+
+  const handleSelectIndividual = (id) => {
+    setSelectedFindings(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const openConfirmModal = (type) => {
+    setActionType(type);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    setShowConfirmModal(false);
+    let statusValue = "";
+    if (actionType === "Enviar") statusValue = "En revisión";
+    else if (actionType === "Cerrar") statusValue = "Cerrado";
+    else if (actionType === "Rechazar") statusValue = "Rechazado";
+
+    if (!statusValue) return;
+    await handleBulkAction(statusValue);
+  };
+
+  const handleBulkAction = async (statusValue) => {
+    if (selectedFindings.length === 0) return;
+    setBulkProcessing(true);
+    setBulkErrorMsg("");
+    setBulkSuccessMsg("");
+
+    const targetStatus = mapStatusToBackend(statusValue);
+    const selectedEligible = findings.filter(
+      (f) => selectedFindings.includes(f.id) && isEligibleForBulkAction(f)
+    );
+
+    const promises = selectedEligible.map(async (finding) => {
+      const payload = {
+        status: targetStatus,
+      };
+      if (statusValue.toLowerCase() === "cerrado") {
+        payload.conclusion_date = new Date().toISOString().split("T")[0];
+      }
+      await updateFinding(finding.id, payload);
+    });
+
+    try {
+      const results = await Promise.allSettled(promises);
+      const successes = results.filter((r) => r.status === "fulfilled").length;
+      const failures = results.filter((r) => r.status === "rejected").length;
+
+      if (failures === 0) {
+        setBulkSuccessMsg(`Se actualizaron correctamente ${successes} hallazgo(s) a "${statusValue}".`);
+      } else {
+        setBulkErrorMsg(
+          `Acción completada con errores. Éxitos: ${successes}, Errores: ${failures}.`
+        );
+      }
+
+      setSelectedFindings([]);
+      await fetchFindings();
+    } catch (err) {
+      console.error("Error running bulk actions:", err);
+      setBulkErrorMsg("Error inesperado al ejecutar las acciones masivas.");
+    } finally {
+      setBulkProcessing(false);
+      setTimeout(() => {
+        setBulkSuccessMsg("");
+        setBulkErrorMsg("");
+      }, 5000);
+    }
   };
 
   // Edit handlers
@@ -407,6 +511,60 @@ const AdminHallazgos = () => {
           </div>
         </div>
 
+        {/* Bulk Action feedback messages */}
+        {bulkSuccessMsg && (
+          <div className="bulk-feedback success">{bulkSuccessMsg}</div>
+        )}
+        {bulkErrorMsg && (
+          <div className="bulk-feedback error">{bulkErrorMsg}</div>
+        )}
+
+        {/* Bulk Actions Bar */}
+        <div className="bulk-actions-bar animate-in">
+          <span>
+            <strong>{selectedFindings.length}</strong> hallazgo(s) seleccionado(s)
+          </span>
+          <div className="bulk-actions-buttons">
+            {role === "Supervisor" && (
+              <button
+                className="btn-action"
+                style={{ background: '#FB8C00', color: 'white' }}
+                onClick={() => openConfirmModal("Enviar")}
+                disabled={selectedFindings.length === 0 || bulkProcessing}
+              >
+                Enviar a revisión
+              </button>
+            )}
+            {role === "Security" && (
+              <>
+                <button
+                  className="btn-close-finding"
+                  style={{ background: '#43A047', color: 'white' }}
+                  onClick={() => openConfirmModal("Cerrar")}
+                  disabled={selectedFindings.length === 0 || bulkProcessing}
+                >
+                  Cerrar
+                </button>
+                <button
+                  className="btn-reject"
+                  style={{ background: '#E53935', color: 'white' }}
+                  onClick={() => openConfirmModal("Rechazar")}
+                  disabled={selectedFindings.length === 0 || bulkProcessing}
+                >
+                  Rechazar
+                </button>
+              </>
+            )}
+            <button
+              className="btn-cancel"
+              onClick={() => setSelectedFindings([])}
+              disabled={selectedFindings.length === 0 || bulkProcessing}
+            >
+              Cancelar selección
+            </button>
+          </div>
+        </div>
+
         {/* Loading */}
         {loading && <div className="admin-loading">Cargando hallazgos...</div>}
 
@@ -419,6 +577,32 @@ const AdminHallazgos = () => {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <input
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={
+                          eligibleVisibleFindings.length > 0 &&
+                          eligibleVisibleFindings.every((f) =>
+                            selectedFindings.includes(f.id)
+                          )
+                        }
+                        ref={(el) => {
+                          if (el) {
+                            const someSelected = eligibleVisibleFindings.some((f) =>
+                              selectedFindings.includes(f.id)
+                            );
+                            const allSelected = eligibleVisibleFindings.every((f) =>
+                              selectedFindings.includes(f.id)
+                            );
+                            el.indeterminate = someSelected && !allSelected;
+                          }
+                        }}
+                      />
+                      <span>Seleccionar para enviar a revisión</span>
+                    </div>
+                  </th>
                   <th>ID</th>
                   <th>Descripción</th>
                   <th>Ubicación</th>
@@ -431,96 +615,79 @@ const AdminHallazgos = () => {
                   <th>Acción Correctiva</th>
                   <th>Auditoría</th>
                   <th>Conclusión</th>
-                  {role === "Supervisor" && <th>Enviar a revisión</th>}
-                  {role === "Security" && <th>Acciones</th>}
                   <th>Editar</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredFindings.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="admin-empty">
+                    <td colSpan="20" className="admin-empty">
                       No se encontraron hallazgos
                     </td>
                   </tr>
                 ) : (
-                  filteredFindings.map((f) => (
-                    <tr key={f.id} className={editingId === f.id ? "row-editing" : ""}>
-                      <td className="cell-id">{f.id}</td>
-                      <td className="cell-desc">
-                        <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                          {f.description}
-                        </div>
-                      </td>
-                      <td>{f.location}</td>
-                      <td>
-                        <span className="category-badge">
-                          {f.finding_category}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className="status-badge"
-                          style={{
-                            background:
-                              STATUS_COLORS[f.status?.toLowerCase()] || "#888",
-                          }}
-                        >
-                          {f.status}
-                        </span>
-                      </td>
-                      <td>{getPlantName(f.id_plant)}</td>
-                      <td>{getAreaName(f.id_area)}</td>
-                      <td>{getUserFullName(f.id_responsible_user)}</td>
-                      <td>{formatDate(f.verification_date)}</td>
-                      <td className="cell-desc">
-                        <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                          {f.corrective_action || "—"}
-                        </div>
-                      </td>
-                      <td>{f.id_audit || "—"}</td>
-                      <td>{formatDate(f.conclusion_date)}</td>
-                      {role === "Supervisor" && (
+                  filteredFindings.map((f) => {
+                    const isSelected = selectedFindings.includes(f.id);
+                    const isEligible = isEligibleForBulkAction(f);
+                    let rowClass = "";
+                    if (editingId === f.id) rowClass = "row-editing";
+                    else if (isSelected) rowClass = "row-selected";
+
+                    return (
+                      <tr key={f.id} className={rowClass}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={!isEligible}
+                            onChange={() => handleSelectIndividual(f.id)}
+                          />
+                        </td>
+                        <td className="cell-id">{f.id}</td>
+                        <td className="cell-desc">
+                          <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {f.description}
+                          </div>
+                        </td>
+                        <td>{f.location}</td>
                         <td>
-                          {f.status?.toLowerCase() === "abierto" && (
-                            <button
-                              className="btn-action"
-                              style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#FB8C00', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                              onClick={() => changeFindingStatus(f.id, "En revisión")}
-                            >
-                              Enviar a revisión
-                            </button>
-                          )}
+                          <span className="category-badge">
+                            {f.finding_category}
+                          </span>
                         </td>
-                      )}
-                      {role === "Security" && (
-                        <td style={{ display: 'flex', gap: '5px' }}>
-                          <button
-                            className="btn-close-finding"
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#43A047', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                            onClick={() => changeFindingStatus(f.id, "Cerrado")}
+                        <td>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background:
+                                STATUS_COLORS[f.status?.toLowerCase()] || "#888",
+                            }}
                           >
-                            Cerrar
-                          </button>
+                            {f.status}
+                          </span>
+                        </td>
+                        <td>{getPlantName(f.id_plant)}</td>
+                        <td>{getAreaName(f.id_area)}</td>
+                        <td>{getUserFullName(f.id_responsible_user)}</td>
+                        <td>{formatDate(f.verification_date)}</td>
+                        <td className="cell-desc">
+                          <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {f.corrective_action || "—"}
+                          </div>
+                        </td>
+                        <td>{f.id_audit || "—"}</td>
+                        <td>{formatDate(f.conclusion_date)}</td>
+                        <td>
                           <button
-                            className="btn-reject"
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#E53935', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                            onClick={() => changeFindingStatus(f.id, "Rechazado")}
+                            className="btn-edit"
+                            onClick={() => startEdit(f)}
                           >
-                            Rechazar
+                            ✏️ Editar
                           </button>
                         </td>
-                      )}
-                      <td>
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(f)}
-                        >
-                          ✏️ Editar
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -718,6 +885,37 @@ const AdminHallazgos = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="popup" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Acción</h2>
+              <button className="btn-close" onClick={() => setShowConfirmModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px', fontSize: '1.1rem', color: 'var(--text-primary)', textAlign: 'center' }}>
+              {actionType === "Enviar" && "¿Estás seguro de enviar los hallazgos seleccionados a revisión?"}
+              {actionType === "Cerrar" && "¿Estás seguro de cerrar los hallazgos seleccionados?"}
+              {actionType === "Rechazar" && "¿Estás seguro de rechazar los hallazgos seleccionados?"}
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-cancel" onClick={() => setShowConfirmModal(false)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn-save"
+                style={{
+                  background: actionType === "Enviar" ? "#FB8C00" : actionType === "Cerrar" ? "#43A047" : "#E53935",
+                  color: "white",
+                  border: "none"
+                }}
+                onClick={handleConfirmAction}
+              >
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}

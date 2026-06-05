@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   getAuditById
@@ -67,6 +67,14 @@ const DetalleAuditoria = () => {
 
   const [saving, setSaving] = useState(false);
 
+  // Bulk actions states
+  const [selectedFindings, setSelectedFindings] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkErrorMsg, setBulkErrorMsg] = useState("");
+  const [bulkSuccessMsg, setBulkSuccessMsg] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [actionType, setActionType] = useState(""); // "Enviar", "Cerrar", "Rechazar"
+
   useEffect(() => {
     fetchData();
   }, [id]);
@@ -128,6 +136,103 @@ const DetalleAuditoria = () => {
       await updateFinding(finding.id, { status: newStatus });
     } catch (err) {
       console.error("Error updating finding status:", err);
+    }
+  };
+
+  const eligibleVisibleFindings = useMemo(() => {
+    return findings.filter((f) => {
+      if (role === "Supervisor") {
+        return f.status?.toLowerCase() === "abierto";
+      }
+      if (role === "Security") {
+        return true;
+      }
+      return false;
+    });
+  }, [findings, role]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const toAdd = eligibleVisibleFindings.map(f => f.id);
+      setSelectedFindings(prev => {
+        const next = new Set(prev);
+        toAdd.forEach(id => next.add(id));
+        return Array.from(next);
+      });
+    } else {
+      const toRemove = new Set(eligibleVisibleFindings.map(f => f.id));
+      setSelectedFindings(prev => prev.filter(id => !toRemove.has(id)));
+    }
+  };
+
+  const handleSelectIndividual = (id) => {
+    setSelectedFindings(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const openConfirmModal = (type) => {
+    setActionType(type);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    setShowConfirmModal(false);
+    let statusValue = "";
+    if (actionType === "Enviar") statusValue = "En revisión";
+    else if (actionType === "Cerrar") statusValue = "Cerrado";
+    else if (actionType === "Rechazar") statusValue = "Rechazado";
+
+    if (!statusValue) return;
+    await handleBulkAction(statusValue);
+  };
+
+  const handleBulkAction = async (statusValue) => {
+    if (selectedFindings.length === 0) return;
+    setBulkProcessing(true);
+    setBulkErrorMsg("");
+    setBulkSuccessMsg("");
+
+    const targetStatus = statusValue;
+    const selectedEligible = findings.filter(
+      (f) => selectedFindings.includes(f.id) && (role === "Security" || (role === "Supervisor" && f.status?.toLowerCase() === "abierto"))
+    );
+
+    const promises = selectedEligible.map(async (finding) => {
+      const payload = {
+        status: targetStatus,
+      };
+      if (statusValue.toLowerCase() === "cerrado") {
+        payload.conclusion_date = new Date().toISOString().split("T")[0];
+      }
+      await updateFinding(finding.id, payload);
+    });
+
+    try {
+      const results = await Promise.allSettled(promises);
+      const successes = results.filter((r) => r.status === "fulfilled").length;
+      const failures = results.filter((r) => r.status === "rejected").length;
+
+      if (failures === 0) {
+        setBulkSuccessMsg(`Se actualizaron correctamente ${successes} hallazgo(s) a "${statusValue}".`);
+      } else {
+        setBulkErrorMsg(
+          `Acción completada con errores. Éxitos: ${successes}, Errores: ${failures}.`
+        );
+      }
+
+      setSelectedFindings([]);
+      const updatedFindings = await getFindingsByAuditId(id);
+      setFindings(updatedFindings.length > 0 ? updatedFindings : DEMO_FINDINGS.filter(f => String(f.id_audit) === String(id)));
+    } catch (err) {
+      console.error("Error running bulk actions:", err);
+      setBulkErrorMsg("Error inesperado al ejecutar las acciones masivas.");
+    } finally {
+      setBulkProcessing(false);
+      setTimeout(() => {
+        setBulkSuccessMsg("");
+        setBulkErrorMsg("");
+      }, 5000);
     }
   };
 
@@ -232,7 +337,6 @@ const DetalleAuditoria = () => {
 </body></html>`);
     win.document.close();
   };
-
 
   const handleCreateFinding = async (e) => {
     e.preventDefault();
@@ -352,44 +456,209 @@ const DetalleAuditoria = () => {
           </div>
         </div>
 
+        {/* Success/Error Feedback */}
+        {bulkSuccessMsg && (
+          <div className="bulk-feedback success animate-in" style={{ marginBottom: '1.5rem' }}>
+            {bulkSuccessMsg}
+          </div>
+        )}
+        {bulkErrorMsg && (
+          <div className="bulk-feedback error animate-in" style={{ marginBottom: '1.5rem' }}>
+            {bulkErrorMsg}
+          </div>
+        )}
+
         <h2 className="animate-in animate-in-delay-1" style={{ marginBottom: '1.5rem' }}>Hallazgos Registrados ({findings.length})</h2>
+
+        {/* Bulk Actions Bar */}
+        {(role === "Supervisor" || role === "Security") && findings.length > 0 && (
+          <div className="bulk-actions-bar animate-in" style={{ marginBottom: '1.5rem' }}>
+            <span>
+              <strong>{selectedFindings.length}</strong> hallazgo(s) seleccionado(s)
+            </span>
+            <div className="bulk-actions-buttons">
+              {role === "Supervisor" && (
+                <button
+                  className="btn-action"
+                  style={{ background: '#FB8C00', color: 'white' }}
+                  onClick={() => openConfirmModal("Enviar")}
+                  disabled={selectedFindings.length === 0 || bulkProcessing}
+                >
+                  Enviar a revisión
+                </button>
+              )}
+              {role === "Security" && (
+                <>
+                  <button
+                    className="btn-close-finding"
+                    style={{ background: '#43A047', color: 'white' }}
+                    onClick={() => openConfirmModal("Cerrar")}
+                    disabled={selectedFindings.length === 0 || bulkProcessing}
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    className="btn-reject"
+                    style={{ background: '#E53935', color: 'white' }}
+                    onClick={() => openConfirmModal("Rechazar")}
+                    disabled={selectedFindings.length === 0 || bulkProcessing}
+                  >
+                    Rechazar
+                  </button>
+                </>
+              )}
+              <button
+                className="btn-cancel"
+                onClick={() => setSelectedFindings([])}
+                disabled={selectedFindings.length === 0 || bulkProcessing}
+              >
+                Cancelar selección
+              </button>
+            </div>
+          </div>
+        )}
 
         {findings.length === 0 ? (
           <div className="empty-state animate-in animate-in-delay-2 glass" style={{ borderRadius: '16px' }}>
             No hay hallazgos registrados para esta auditoría todavía.
           </div>
         ) : (
-          <div className="findings-list animate-in animate-in-delay-2">
-            {findings.map(f => (
-              <div key={f.id} className="finding-item glass" style={{ padding: '1.5rem', borderLeft: '6px solid var(--primary)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <div className="finding-desc" style={{ fontSize: '1.1rem' }}>{f.description}</div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', cursor: 'pointer', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={f.status === "En revisión"} 
-                        onChange={() => handleToggleStatus(f)}
-                        style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+          <div className="admin-table-wrapper animate-in animate-in-delay-2">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  {(role === "Supervisor" || role === "Security") && (
+                    <th style={{ textAlign: 'center', width: '50px' }}>
+                      <input
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={
+                          eligibleVisibleFindings.length > 0 &&
+                          eligibleVisibleFindings.every((f) =>
+                            selectedFindings.includes(f.id)
+                          )
+                        }
+                        ref={(el) => {
+                          if (el) {
+                            const someSelected = eligibleVisibleFindings.some((f) =>
+                              selectedFindings.includes(f.id)
+                            );
+                            const allSelected = eligibleVisibleFindings.every((f) =>
+                              selectedFindings.includes(f.id)
+                            );
+                            el.indeterminate = someSelected && !allSelected;
+                          }
+                        }}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                       />
-                      <span>En revisión</span>
-                    </label>
-                    <span className="status-badge" style={{ background: f.status === 'Abierto' ? 'var(--primary)' : f.status === 'En revisión' ? '#FB8C00' : '#43A047' }}>{f.status}</span>
-                    <button className="btn-view" style={{ padding: '0.4rem', fontSize: '0.8rem' }} onClick={() => openEditFinding(f)}>✏️</button>
-                  </div>
-                </div>
-                <div className="finding-meta">
-                  <span>📍 <strong>Ubicación:</strong> {f.location}</span>
-                  <span> <strong>Categoría:</strong> {f.finding_category}</span>
-                  <span> <strong>Nivel:</strong> {f.level || "—"}</span>
-                  <span> <strong>ID:</strong> {f.id}</span>
-                </div>
-              </div>
-            ))}
+                    </th>
+                  )}
+                  <th>ID</th>
+                  <th>Descripción del Hallazgo</th>
+                  <th>Ubicación / Equipo</th>
+                  <th>Categoría</th>
+                  <th>Referencia Norma</th>
+                  <th>Nivel</th>
+                  <th>Estatus</th>
+                  <th style={{ textAlign: 'center' }}>Editar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {findings.map((f) => {
+                  const isSelected = selectedFindings.includes(f.id);
+                  const isEligible = role === "Security" || (role === "Supervisor" && f.status?.toLowerCase() === "abierto");
+                  
+                  let rowClass = "";
+                  if (isSelected) rowClass = "row-selected";
+
+                  return (
+                    <tr key={f.id} className={rowClass}>
+                      {(role === "Supervisor" || role === "Security") && (
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={!isEligible}
+                            onChange={() => handleSelectIndividual(f.id)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          />
+                        </td>
+                      )}
+                      <td className="cell-id">{f.id}</td>
+                      <td className="cell-desc" style={{ whiteSpace: 'normal', wordBreak: 'break-word', minWidth: '220px' }}>
+                        {f.description}
+                      </td>
+                      <td>{f.location}</td>
+                      <td>
+                        <span className="category-badge">
+                          {f.finding_category}
+                        </span>
+                      </td>
+                      <td>{f.reference_to_the_standard || "—"}</td>
+                      <td style={{ textAlign: 'center' }}>{f.level || "—"}</td>
+                      <td>
+                        <span
+                          className="status-badge"
+                          style={{
+                            background:
+                              f.status === 'Abierto' ? 'var(--primary)' : f.status === 'En revisión' ? '#FB8C00' : f.status === 'Cerrado' ? '#43A047' : '#757575',
+                          }}
+                        >
+                          {f.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          className="btn-edit"
+                          onClick={() => openEditFinding(f)}
+                          style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                        >
+                          ✏️
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="popup" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Acción Masiva</h2>
+              <button className="btn-close" onClick={() => setShowConfirmModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                {actionType === "Enviar" && "¿Estás seguro de enviar los hallazgos seleccionados a revisión?"}
+                {actionType === "Cerrar" && "¿Estás seguro de cerrar los hallazgos seleccionados?"}
+                {actionType === "Rechazar" && "¿Estás seguro de rechazar los hallazgos seleccionados?"}
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowConfirmModal(false)}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{
+                    background:
+                      actionType === "Enviar" ? '#FB8C00' :
+                      actionType === "Cerrar" ? '#43A047' : '#E53935'
+                  }}
+                  onClick={handleConfirmAction}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Finding Modal */}
       {showEditFindingModal && (
@@ -559,3 +828,4 @@ const DetalleAuditoria = () => {
 };
 
 export default DetalleAuditoria;
+
