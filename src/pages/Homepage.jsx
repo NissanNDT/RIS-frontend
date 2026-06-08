@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import axios from "axios";
-import { FiAlertTriangle, FiCheckCircle, FiFileText, FiActivity, FiShield, FiBarChart2 } from "react-icons/fi";
+import api from "../api/axios";
+import { FiAlertTriangle, FiCheckCircle, FiFileText, FiActivity, FiShield, FiBarChart2, FiClipboard, FiClock } from "react-icons/fi";
 import "../App.css";
 
 const BarChart = ({ data, color = "#C8102E" }) => {
@@ -33,7 +33,11 @@ const Homepage = () => {
   // Estados
   const [incidents, setIncidents] = useState([]);
   const [findings, setFindings] = useState([]);
+  const [audits, setAudits] = useState([]);
+  const [plants, setPlants] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch datos (Un solo consumo por endpoint)
   useEffect(() => {
@@ -42,40 +46,71 @@ const Homepage = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [incRes, findRes] = await Promise.all([
-        axios.get("/api/incidents", { withCredentials: true }),
-        axios.get("/api/findings", { withCredentials: true }),
+      const [incRes, findRes, auditRes, plantRes, areaRes] = await Promise.all([
+        api.get("/get/incidents"),
+        api.get("/get/findings"),
+        api.get("/get/public-audits"),
+        api.get("/get/plants"),
+        api.get("/get/areas")
       ]);
 
       const incData = Array.isArray(incRes.data) ? incRes.data : incRes.data.data || [];
       const findData = Array.isArray(findRes.data) ? findRes.data : findRes.data.data || [];
+      const auditData = Array.isArray(auditRes.data) ? auditRes.data : auditRes.data.data || [];
+      const plantData = Array.isArray(plantRes.data) ? plantRes.data : plantRes.data.data || [];
+      const areaData = Array.isArray(areaRes.data) ? areaRes.data : areaRes.data.data || [];
 
       setIncidents(incData);
       setFindings(findData);
+      setAudits(auditData);
+      setPlants(plantData);
+      setAreas(areaData);
     } catch (error) {
       console.error("Error cargando datos:", error);
+      setError("No se pudieron cargar algunos datos del sistema. Mostrando información parcial o vacía.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Mapeos rápidos de ID a Nombre
+  const plantsMap = useMemo(() => {
+    const map = {};
+    plants.forEach(p => {
+      if (p.id) map[String(p.id)] = p.name;
+    });
+    return map;
+  }, [plants]);
+
+  const areasMap = useMemo(() => {
+    const map = {};
+    areas.forEach(a => {
+      if (a.id) map[String(a.id)] = a.name;
+    });
+    return map;
+  }, [areas]);
+
   // Cálculos para Dashboard usando filter()
   const stats = useMemo(() => {
     // ── HALLAZGOS ──
     const totalFind = findings.length;
-    const openFind = findings.filter(f => f.status === "Abierto" || f.status === "En revisión").length;
+    const openFind = findings.filter(f => f.status === "Abierto").length;
+    const reviewFind = findings.filter(f => f.status === "En revisión").length;
     const closedFind = findings.filter(f => f.status === "Cerrado").length;
 
     const byPlantFind = {};
     findings.forEach(f => {
-      const p = f.id_plant ? `Planta ${f.id_plant}` : "Sin Planta";
+      const pId = f.id_plant ? String(f.id_plant) : null;
+      const p = pId && plantsMap[pId] ? plantsMap[pId] : (f.id_plant ? `Planta ${f.id_plant}` : "Sin Planta");
       byPlantFind[p] = (byPlantFind[p] || 0) + 1;
     });
 
     const byAreaFind = {};
     findings.forEach(f => {
-      const a = f.id_area ? `Área ${f.id_area}` : "Sin Área";
+      const aId = f.id_area ? String(f.id_area) : null;
+      const a = aId && areasMap[aId] ? areasMap[aId] : (f.id_area ? `Área ${f.id_area}` : "Sin Área");
       byAreaFind[a] = (byAreaFind[a] || 0) + 1;
     });
 
@@ -88,34 +123,48 @@ const Homepage = () => {
     const totalInc = incidents.length;
     const byPlantInc = {};
     incidents.forEach(i => {
-      const p = i.id_plant ? `Planta ${i.id_plant}` : "Sin Planta";
+      const pId = i.id_plant ? String(i.id_plant) : null;
+      const p = pId && plantsMap[pId] ? plantsMap[pId] : (i.id_plant ? `Planta ${i.id_plant}` : "Sin Planta");
       byPlantInc[p] = (byPlantInc[p] || 0) + 1;
     });
 
     const byAreaInc = {};
     incidents.forEach(i => {
-      const a = i.id_area ? `Área ${i.id_area}` : "Sin Área";
+      const aId = i.id_area ? String(i.id_area) : null;
+      const a = aId && areasMap[aId] ? areasMap[aId] : (i.id_area ? `Área ${i.id_area}` : "Sin Área");
       byAreaInc[a] = (byAreaInc[a] || 0) + 1;
     });
 
     // ── PIRÁMIDE (Incidentes) ──
-    // Se asume que level puede venir como "G,U..."
-    const getLevel = (levelStr) => levelStr ? String(levelStr).split(',')[0].trim() : null;
+    const byLevel = { G: 0, U: 0, R: 0, FR1: 0, FR0: 0 };
+    incidents.forEach(i => {
+      if (!i.level) return;
+      const parts = String(i.level).split(',').map(s => s.trim().toUpperCase());
+      if (parts.includes("G")) byLevel.G++;
+      if (parts.includes("U")) byLevel.U++;
+      if (parts.includes("R")) byLevel.R++;
+      if (parts.includes("FR1")) byLevel.FR1++;
+      if (parts.includes("FR0")) byLevel.FR0++;
+    });
 
-    const byLevel = {
-      G: incidents.filter(i => getLevel(i.level) === "G").length,
-      U: incidents.filter(i => getLevel(i.level) === "U").length,
-      R: incidents.filter(i => getLevel(i.level) === "R").length,
-      FR1: incidents.filter(i => getLevel(i.level) === "FR1").length,
-      FR0: incidents.filter(i => getLevel(i.level) === "FR0").length,
-    };
+    // ── AUDITORÍAS Y ÚLTIMOS REGISTROS ──
+    const totalAudits = audits.length;
+
+    const latestFindings = [...findings]
+      .sort((a, b) => b.id - a.id)
+      .slice(0, 5);
+
+    const latestIncidents = [...incidents]
+      .sort((a, b) => b.id - a.id)
+      .slice(0, 5);
 
     return {
-      totalFind, openFind, closedFind, byPlantFind, byAreaFind,
+      totalFind, openFind, reviewFind, closedFind, byPlantFind, byAreaFind,
       actoInseguro, condicionInsegura, condicionNG,
-      totalInc, byPlantInc, byAreaInc, byLevel
+      totalInc, byPlantInc, byAreaInc, byLevel,
+      totalAudits, latestFindings, latestIncidents
     };
-  }, [incidents, findings]);
+  }, [incidents, findings, audits, plantsMap, areasMap]);
 
 
   return (
@@ -135,6 +184,9 @@ const Homepage = () => {
         .class-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
         .class-bar { height: 6px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
         
+        .stat-icon.in-review { color: #8E24AA; background: rgba(142, 36, 170, 0.1); }
+        .stat-icon.audit { color: #00ACC1; background: rgba(0, 172, 193, 0.1); }
+
         /* Inline Pyramid overrides */
         .pyr-container { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 0; }
         .pyr-level { display: flex; justify-content: space-between; align-items: center; padding: 10px 30px; color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-size: 0.85rem; cursor: pointer; transition: transform 0.2s; }
@@ -156,6 +208,14 @@ const Homepage = () => {
           Gestión integral de seguridad industrial, prevención de riesgos y seguimiento de incidentes.
         </p>
       </section>
+
+      {error && (
+        <div style={{ maxWidth: "1200px", margin: "0 auto 24px", padding: "0 24px" }}>
+          <div style={{ padding: "16px", background: "rgba(229, 57, 53, 0.1)", border: "1px solid #E53935", borderRadius: "var(--radius-md)", color: "#E53935", fontSize: "0.9rem", fontWeight: 500 }}>
+            {error}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>Cargando dashboard...</div>
@@ -181,6 +241,14 @@ const Homepage = () => {
                 </div>
               </div>
               <div className="stat-card glass">
+                <div className="stat-icon in-review"><FiClock /></div>
+                <div className="stat-info">
+                  <h3>En Revisión</h3>
+                  <div className="stat-value">{stats.reviewFind}</div>
+                  <p>Hallazgos bajo validación</p>
+                </div>
+              </div>
+              <div className="stat-card glass">
                 <div className="stat-icon safe"><FiCheckCircle /></div>
                 <div className="stat-info">
                   <h3>Hallazgos Cerrados</h3>
@@ -194,6 +262,14 @@ const Homepage = () => {
                   <h3>Total Incidentes</h3>
                   <div className="stat-value">{stats.totalInc}</div>
                   <p>Registrados en el sistema</p>
+                </div>
+              </div>
+              <div className="stat-card glass">
+                <div className="stat-icon audit"><FiClipboard /></div>
+                <div className="stat-info">
+                  <h3>Auditorías</h3>
+                  <div className="stat-value">{stats.totalAudits}</div>
+                  <p>Auditorías generales</p>
                 </div>
               </div>
             </div>
@@ -282,6 +358,60 @@ const Homepage = () => {
                     <span className="class-label">Condición NG</span>
                   </div>
                   <div className="class-bar"><div style={{ height: "100%", width: stats.totalFind ? `${(stats.condicionNG / stats.totalFind) * 100}%` : '0%', background: "#D32F2F", transition: "width 0.6s ease" }} /></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Últimos Registros */}
+          <section className="dash-section animate-in animate-in-delay-5">
+            <h2 className="dash-title"><FiClock className="dash-icon" /> Últimos Registros</h2>
+            <div className="dash-grid-2">
+              {/* Últimos Hallazgos */}
+              <div className="dash-card">
+                <h3 className="dash-card-title">Últimos Hallazgos</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {stats.latestFindings.length === 0 ? (
+                    <p style={{ color: "var(--text-tertiary)", fontStyle: "italic", textAlign: "center" }}>Sin registros</p>
+                  ) : (
+                    stats.latestFindings.map(f => (
+                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "70%" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>{f.finding_folio || `Hallazgo #${f.id}`}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
+                            {f.description}
+                          </span>
+                        </div>
+                        <span className={`badge-status ${f.status?.toLowerCase()?.replace(/\s+/g, '-')}`} style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "12px", fontWeight: 600, background: f.status === "Cerrado" ? "rgba(67, 160, 71, 0.15)" : f.status === "En revisión" ? "rgba(142, 36, 170, 0.15)" : "rgba(229, 57, 53, 0.15)", color: f.status === "Cerrado" ? "#43A047" : f.status === "En revisión" ? "#8E24AA" : "#E53935", whiteSpace: "nowrap" }}>
+                          {f.status}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Últimos Incidentes */}
+              <div className="dash-card">
+                <h3 className="dash-card-title">Últimos Incidentes</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {stats.latestIncidents.length === 0 ? (
+                    <p style={{ color: "var(--text-tertiary)", fontStyle: "italic", textAlign: "center" }}>Sin registros</p>
+                  ) : (
+                    stats.latestIncidents.map(i => (
+                      <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "70%" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>{i.folio || `Incidente #${i.id}`}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
+                            {i.description}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "12px", fontWeight: 600, background: "rgba(251, 140, 0, 0.15)", color: "#FB8C00", whiteSpace: "nowrap" }}>
+                          Nivel {i.level || "N/A"}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

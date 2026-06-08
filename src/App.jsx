@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -12,9 +13,23 @@ import Auditorias from "./pages/Auditorias";
 import DetalleAuditoria from "./pages/DetalleAuditoria";
 import LlenadoFormatoIncidente from "./pages/LlenadoFormatoIncidente";
 import HallazgosQueReporte from "./pages/HallazgosQueReporte";
+import { isTokenExpired } from "./utils/auth";
+import { logoutRequest } from "./services/authService";
 
 function App() {
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token && isTokenExpired(token)) {
+      localStorage.removeItem("user");
+      localStorage.removeItem("role");
+      localStorage.removeItem("token");
+      logoutRequest();
+      window.location.href = "/login?expired=true";
+    }
+  }, []);
+
   return (
+
     <BrowserRouter>
       <Navbar />
       <Routes>

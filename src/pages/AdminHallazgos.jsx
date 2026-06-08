@@ -181,6 +181,7 @@ const AdminHallazgos = () => {
         !search ||
         f.description?.toLowerCase().includes(search.toLowerCase()) ||
         f.location?.toLowerCase().includes(search.toLowerCase()) ||
+        f.finding_folio?.toLowerCase().includes(search.toLowerCase()) ||
         String(f.id).includes(search);
 
       const matchCategory =
@@ -333,6 +334,7 @@ const AdminHallazgos = () => {
 
       const dataToExport = filteredFindings.map((f) => ({
         "ID": f.id,
+        "Folio": f.finding_folio || "—",
         "Descripción": f.description || "",
         "Ubicación": f.location || "",
         "Categoría": f.finding_category || "",
@@ -400,8 +402,8 @@ const AdminHallazgos = () => {
                 cell.s.fill = { fgColor: { rgb: "F8FAFC" } };
               }
 
-              // Column alignments: ID (0), Nivel (4), Estatus (5), Fecha Verificación (9), Auditoría (11), Conclusión (12)
-              const centerCols = [0, 4, 5, 9, 11, 12];
+              // Column alignments: ID (0), Folio (1), Nivel (5), Estatus (6), Fecha Verificación (10), Auditoría (12), Conclusión (13)
+              const centerCols = [0, 1, 5, 6, 10, 12, 13];
               if (centerCols.includes(C)) {
                 cell.s.alignment.horizontal = "center";
               } else {
@@ -409,7 +411,7 @@ const AdminHallazgos = () => {
               }
 
               // Status badges colors matching UI
-              if (C === 5) {
+              if (C === 6) {
                 const statusVal = String(cell.v || "").toLowerCase();
                 if (statusVal === "abierto") {
                   cell.s.fill = { fgColor: { rgb: "FDE8E8" } }; // Light red
@@ -426,8 +428,8 @@ const AdminHallazgos = () => {
                 }
               }
 
-              // Bold ID Column
-              if (C === 0) {
+              // Bold ID & Folio Column
+              if (C === 0 || C === 1) {
                 cell.s.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "1F4E79" } };
               }
             }
@@ -461,6 +463,7 @@ const AdminHallazgos = () => {
   const startEdit = (finding) => {
     setEditingId(finding.id);
     setEditForm({
+      finding_folio: finding.finding_folio || "",
       description: finding.description || "",
       location: finding.location || "",
       id_area: finding.id_area || "",
@@ -636,6 +639,14 @@ const AdminHallazgos = () => {
   const hasAudit = !!editForm.id_audit;
 
   const isFieldDisabled = (fieldName) => {
+    if (role === "Supervisor") {
+      const allowedFields = [
+        "corrective_action",
+        "conclusion_date",
+        "countermeasure_image_path"
+      ];
+      return !allowedFields.includes(fieldName);
+    }
     if (isSecurity) {
       if (!hasAudit) {
         return true;
@@ -905,6 +916,7 @@ const AdminHallazgos = () => {
                     </div>
                   </th>
                   <th>ID</th>
+                  <th>Folio</th>
                   <th>Descripción</th>
                   <th>Ubicación</th>
                   <th>Categoría</th>
@@ -945,6 +957,7 @@ const AdminHallazgos = () => {
                           />
                         </td>
                         <td className="cell-id">{f.id}</td>
+                        <td className="cell-folio" style={{ fontWeight: 'bold', color: '#1F4E79', whiteSpace: 'nowrap' }}>{f.finding_folio || "—"}</td>
                         <td className="cell-desc">
                            <div style={{ maxHeight: '70px', overflowY: 'auto', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                              {f.description}
@@ -1041,7 +1054,24 @@ const AdminHallazgos = () => {
                     ℹ️ Como usuario con rol "Security", solo se te permite editar: Descripción, Ubicación, Referencia a la Norma, Nivel y Fecha de Verificación.
                   </div>
                 )}
+                {role === "Supervisor" && (
+                  <div style={{ marginBottom: '1.2rem', background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'left', fontWeight: '500' }}>
+                    ℹ️ Como usuario con rol "Supervisor", solo se te permite editar: Acción Correctiva, Fecha Conclusión e Imagen de Contramedida.
+                  </div>
+                )}
                 <div className="audit-form-grid">
+                  {editForm.finding_folio && (
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>Folio</label>
+                      <input
+                        type="text"
+                        name="finding_folio"
+                        value={editForm.finding_folio}
+                        disabled
+                        style={{ background: '#f5f5f5', color: '#666', fontWeight: 'bold' }}
+                      />
+                    </div>
+                  )}
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Descripción</label>
                     <textarea
@@ -1122,11 +1152,9 @@ const AdminHallazgos = () => {
                       onChange={handleEditChange}
                       disabled={isFieldDisabled("finding_type")}
                     >
-                      <option value="General">General</option>
-                      <option value="Auditoría">Auditoría</option>
-                      <option value="Incidente">Incidente</option>
+                      <option value="SES">SES</option>
+                      <option value="FPES">FPES</option>
                       <option value="5S">5S</option>
-                      <option value="Otros">Otros</option>
                     </select>
                   </div>
                   <div className="form-group">

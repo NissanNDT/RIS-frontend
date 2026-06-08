@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginRequest } from "../services/authService";
 import "../App.css";
@@ -12,7 +12,16 @@ const Login = () => {
   });
 
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("expired") === "true") {
+      setMessage("Sesión expirada, inicia sesión nuevamente");
+    }
+  }, []);
+
 
   const handleChange = (e) => {
     setForm({
@@ -64,6 +73,12 @@ const Login = () => {
     <div className="login-page">
       <div className="login-card">
         <h2>Iniciar sesión</h2>
+
+        {message && (
+          <p className="login-message" style={{ color: "#e0a800", fontWeight: "bold", textAlign: "center", marginBottom: "15px" }}>
+            {message}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="login-form">
           <label>
