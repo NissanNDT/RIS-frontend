@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  getAllAudits, 
+import {
+  getAllAudits,
   createAudit,
-  updateAudit
+  updateAudit,
+  deleteAudit
 } from "../services/auditService";
 import { getPlants, getAreas } from "../services/findingService";
 import api from "../api/axios";
@@ -38,7 +39,7 @@ const Auditorias = () => {
   const [showNewAuditModal, setShowNewAuditModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Form states
   const [auditForm, setAuditForm] = useState({
     name: "",
@@ -48,6 +49,12 @@ const Auditorias = () => {
   });
 
   const [saving, setSaving] = useState(false);
+
+  // Delete confirmation states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [auditToDelete, setAuditToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -117,16 +124,16 @@ const Auditorias = () => {
         id_plant: Number(auditForm.id_plant),
         id_area: Number(auditForm.id_area)
       };
-      
+
       console.log("Enviando petición de creación:", payload);
       const result = await createAudit(payload);
-      console.log("Tipo de result", typeof(result));
-      console.log("Json",payload)
+      console.log("Tipo de result", typeof (result));
+      console.log("Json", payload)
       console.log("Resultado de creación:", result);
 
       setShowNewAuditModal(false);
       setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
-      
+
       // Redirect to the new audit detail page
       if (result && (result.id || result.id_audit)) {
         const newId = result.id || result.id_audit;
@@ -164,14 +171,14 @@ const Auditorias = () => {
         id_plant: Number(auditForm.id_plant),
         id_area: Number(auditForm.id_area)
       };
-      
+
       await updateAudit(editingId, payload);
-      
+
       setShowNewAuditModal(false);
       setIsEditing(false);
       setEditingId(null);
       setAuditForm({ name: "", id_plant: "", id_area: "", type: "SES" });
-      
+
       fetchData();
     } catch (err) {
       console.error("Error updating audit:", err);
@@ -179,6 +186,31 @@ const Auditorias = () => {
       alert(`Error al actualizar la auditoría: ${errorMessage}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDeleteAudit = (id) => {
+    setAuditToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteAudit = async () => {
+    if (!auditToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteAudit(auditToDelete);
+      setSuccessMsg("Auditoría eliminada con éxito.");
+      setShowDeleteConfirm(false);
+      setAuditToDelete(null);
+      await fetchData();
+    } catch (err) {
+      console.error("Error deleting audit:", err);
+      alert("Error al eliminar la auditoría.");
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => {
+        setSuccessMsg("");
+      }, 5000);
     }
   };
 
@@ -199,15 +231,17 @@ const Auditorias = () => {
           )}
         </div>
 
+        {successMsg && <div className="admin-success animate-in" style={{ marginBottom: "1rem" }}>{successMsg}</div>}
+
         {/* Filters Bar */}
         <div className="auditorias-filters animate-in animate-in-delay-1">
           <div className="filter-item">
             <label>Buscar</label>
-            <input 
-              type="text" 
-              placeholder="Nombre o folio..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
+            <input
+              type="text"
+              placeholder="Nombre o folio..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="filter-item">
@@ -250,7 +284,7 @@ const Auditorias = () => {
                 </div>
                 <div className="audit-folio">{audit.audit_folio}</div>
                 <div className="audit-name">{audit.name}</div>
-                
+
                 <div className="audit-info">
                   <div className="info-item">
                     📍 Planta: <span>{plants.find(p => p.id === audit.id_plant)?.name || audit.id_plant}</span>
@@ -270,6 +304,18 @@ const Auditorias = () => {
                   {canEdit && (
                     <button className="btn-action btn-view" onClick={(e) => { e.stopPropagation(); handleEdit(audit); }}>
                       ✏️ Editar
+                    </button>
+                  )}
+                  {role === "Security" && (
+                    <button
+                      className="btn-action btn-delete"
+                      style={{ backgroundColor: 'rgba(229, 57, 53, 0.1)', color: '#E53935', border: '1px solid rgba(229, 57, 53, 0.2)' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDeleteAudit(audit.id);
+                      }}
+                    >
+                      🗑️ Eliminar
                     </button>
                   )}
                 </div>
@@ -292,13 +338,13 @@ const Auditorias = () => {
                 <div className="audit-form-grid">
                   <div className="form-group full">
                     <label>Nombre de la Auditoría</label>
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={auditForm.name} 
-                      onChange={handleAuditChange} 
+                    <input
+                      type="text"
+                      name="name"
+                      value={auditForm.name}
+                      onChange={handleAuditChange}
                       placeholder="Ej. Auditoría de Seguridad Trimestral"
-                      required 
+                      required
                       disabled={!canEdit}
                     />
                   </div>
@@ -335,6 +381,36 @@ const Auditorias = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Audit Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content glass" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirmar Eliminación</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+                ¿Estás seguro de eliminar esta auditoría? Esta acción también eliminará todos los hallazgos asociados.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button className="btn-cancel" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-save"
+                  style={{ background: '#E53935', color: 'white' }}
+                  onClick={handleDeleteAudit}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Eliminando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -29,10 +29,18 @@ import {
   deleteAnalysisParticipant,
   deleteHazardBackground,
   deleteInterveningFactor,
-  downloadIncidentExcel
+  downloadIncidentExcel,
+  createIncidentImage,
+  getImagesByIncidentFormat,
+  deleteIncidentImageApi
 } from "../services/incidentService";
 import { getPlants, getAreas } from "../services/findingService";
 import { useLocation, useParams } from "react-router-dom";
+import {
+  uploadIncidentImage,
+  deleteIncidentImage,
+  getSignedIncidentImageUrl
+} from "../utils/supabaseStorage";
 import "../styles/LlenadoFormatoIncidente.css";
 
 const LlenadoFormatoIncidente = () => {
@@ -67,6 +75,8 @@ const LlenadoFormatoIncidente = () => {
 
   const [plants, setPlants] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [incidentImages, setIncidentImages] = useState([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
 
   useEffect(() => {
     getPlants().then(setPlants).catch(() => { });
@@ -566,6 +576,120 @@ const LlenadoFormatoIncidente = () => {
       })
       .catch(() => setFormatExists(false));
   }, [currentIncidentId]);
+
+  const loadImagesWithSignedUrls = async (imagesList) => {
+    setImagesLoading(true);
+    try {
+      const imagesWithUrls = await Promise.all(
+        imagesList.map(async (img) => {
+          const signedUrl = await getSignedIncidentImageUrl(img.incident_image_path);
+          return {
+            ...img,
+            signedUrl,
+          };
+        })
+      );
+      setIncidentImages(imagesWithUrls);
+    } catch (error) {
+      console.error("Error al cargar urls firmadas de imágenes:", error);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!incidentFormatId) return;
+    
+    getImagesByIncidentFormat(incidentFormatId)
+      .then((imgs) => {
+        if (imgs && imgs.length > 0) {
+          loadImagesWithSignedUrls(imgs);
+        } else {
+          setIncidentImages([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Error al obtener imágenes:", err);
+      });
+  }, [incidentFormatId]);
+
+  const handleMultipleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const idFormat = incidentFormatId || formData.id_incident_format || formData.id;
+    if (!idFormat) {
+      alert("Primero debe crear y guardar los Datos Generales del Formato.");
+      return;
+    }
+
+    setImagesLoading(true);
+
+    try {
+      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      for (const file of files) {
+        if (!allowedTypes.includes(file.type)) {
+          alert(`El archivo ${file.name} no es una imagen válida (jpg/jpeg/png).`);
+          setImagesLoading(false);
+          return;
+        }
+        if (file.size > maxSize) {
+          alert(`El archivo ${file.name} supera el límite de tamaño de 5MB.`);
+          setImagesLoading(false);
+          return;
+        }
+      }
+
+      const uploadPromises = files.map(async (file) => {
+        const timestamp = Date.now();
+        const extension = file.name.split('.').pop() || 'jpg';
+        const storagePath = `incident-format-${idFormat}/incident-${timestamp}-${Math.floor(Math.random() * 1000)}.${extension}`;
+        
+        const uploadedPath = await uploadIncidentImage(file, storagePath);
+        
+        const newImgRecord = await createIncidentImage({
+          id_incident_format: idFormat,
+          incident_image_path: uploadedPath
+        });
+
+        const signedUrl = await getSignedIncidentImageUrl(uploadedPath);
+
+        return {
+          ...newImgRecord,
+          signedUrl
+        };
+      });
+
+      const newImages = await Promise.all(uploadPromises);
+      setIncidentImages((prev) => [...prev, ...newImages]);
+      alert("Imágenes subidas correctamente.");
+    } catch (error) {
+      console.error("Error al subir imágenes:", error);
+      alert("Error al subir imágenes: " + error.message);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
+  const handleDeleteImage = async (imgId, imgPath) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar esta imagen?")) return;
+    
+    setImagesLoading(true);
+    try {
+      await deleteIncidentImage(imgPath);
+      await deleteIncidentImageApi(imgId);
+      setIncidentImages((prev) => prev.filter((img) => img.id !== imgId));
+      alert("Imagen eliminada correctamente.");
+    } catch (error) {
+      console.error("Error al eliminar imagen:", error);
+      alert("Error al eliminar imagen: " + error.message);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -1397,17 +1521,53 @@ const LlenadoFormatoIncidente = () => {
               >
                 <div className="lfi-upload-icon">📁</div>
                 <div className="lfi-upload-text">
-                  <strong>Haz clic para examinar</strong> o arrastra imágenes del incidente aquí
+                  <strong>Haz clic para examinar</strong> e introduce múltiples imágenes del incidente (JPG, JPEG, PNG, max 5MB cada una)
                 </div>
-                <span className="lfi-upload-btn">Seleccionar Archivo</span>
+                <span className="lfi-upload-btn">Seleccionar Archivos</span>
                 <input
                   id="lfi-file-input"
                   type="file"
+                  multiple
                   className="lfi-upload-input"
-                  accept="image/*"
-                  onChange={() => alert("Simulación: Imagen cargada temporalmente en memoria")}
+                  accept="image/png, image/jpeg, image/jpg"
+                  onChange={handleMultipleImageUpload}
+                  disabled={imagesLoading}
                 />
               </div>
+
+              {imagesLoading && (
+                <div className="lfi-images-loading">
+                  <span>⏳ Procesando imágenes... por favor espere.</span>
+                </div>
+              )}
+
+              {incidentImages.length > 0 && (
+                <div className="lfi-images-grid animate-in">
+                  {incidentImages.map((img) => (
+                    <div key={img.id} className="lfi-image-card">
+                      {img.signedUrl ? (
+                        <img
+                          src={img.signedUrl}
+                          alt="Incident"
+                          className="lfi-image-preview"
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Cargando...
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="lfi-image-delete-btn"
+                        onClick={() => handleDeleteImage(img.id, img.incident_image_path)}
+                        title="Eliminar imagen"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

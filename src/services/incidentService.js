@@ -216,3 +216,22 @@ export const downloadIncidentExcel = async (id_incident) => {
   });
   return res.data;
 };
+
+// Create incident image record in database
+export const createIncidentImage = async (data) => {
+  const res = await api.post("/incident-images", data, authHeadersJSON());
+  return res.data;
+};
+
+// Get images by incident format ID
+export const getImagesByIncidentFormat = async (id_incident_format) => {
+  const res = await api.get(`/incident-images/incident-format/${id_incident_format}`, authHeadersJSON());
+  return res.data;
+};
+
+// Delete incident image record from database
+export const deleteIncidentImageApi = async (id) => {
+  const res = await api.delete(`/delete/incident-images/${id}`, authHeadersJSON());
+  return res.data;
+};
+

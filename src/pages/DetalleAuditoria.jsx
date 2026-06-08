@@ -12,6 +12,8 @@ import {
   getFindingsByAuditId,
   deleteFinding
 } from "../services/findingService";
+import FindingImage from "../components/FindingImage";
+import { uploadImage, deleteImage, getSignedImageUrl } from "../utils/supabaseStorage";
 import "../styles/Auditorias.css";
 
 const DEMO_AUDITS = [
@@ -71,6 +73,12 @@ const DetalleAuditoria = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [findingToDelete, setFindingToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Image states
+  const [editFindingPreview, setEditFindingPreview] = useState("");
+  const [editCountermeasurePreview, setEditCountermeasurePreview] = useState("");
+  const [uploadingFinding, setUploadingFinding] = useState(false);
+  const [uploadingCountermeasure, setUploadingCountermeasure] = useState(false);
 
   // Bulk actions states
   const [selectedFindings, setSelectedFindings] = useState([]);
@@ -375,9 +383,127 @@ const DetalleAuditoria = () => {
       reference_to_the_standard: finding.reference_to_the_standard || "",
       finding_category: finding.finding_category || "Condición Insegura",
       corrective_action: finding.corrective_action || "",
-      conclusion_date: finding.conclusion_date ? finding.conclusion_date.split("T")[0] : ""
+      conclusion_date: finding.conclusion_date ? finding.conclusion_date.split("T")[0] : "",
+      finding_image_path: finding.finding_image_path || "",
+      countermeasure_image_path: finding.countermeasure_image_path || "",
+      finding_type: finding.finding_type || "General",
     });
     setShowEditFindingModal(true);
+
+    // Load previews
+    if (finding.finding_image_path) {
+      getSignedImageUrl(finding.finding_image_path).then(setEditFindingPreview);
+    } else {
+      setEditFindingPreview("");
+    }
+    if (finding.countermeasure_image_path) {
+      getSignedImageUrl(finding.countermeasure_image_path).then(setEditCountermeasurePreview);
+    } else {
+      setEditCountermeasurePreview("");
+    }
+  };
+
+  const validateImage = (file) => {
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    const extension = file.name.split(".").pop().toLowerCase();
+    if (!allowedExtensions.includes(extension)) {
+      return "Solo se permiten imágenes JPG, JPEG o PNG.";
+    }
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSizeBytes) {
+      return "La imagen no debe superar los 5MB.";
+    }
+    return null;
+  };
+
+  const handleEditImageUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validationError = validateImage(file);
+    if (validationError) {
+      alert(validationError);
+      e.target.value = "";
+      return;
+    }
+
+    if (type === "finding") {
+      setUploadingFinding(true);
+    } else {
+      setUploadingCountermeasure(true);
+    }
+
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const extension = file.name.split(".").pop().toLowerCase();
+      
+      const previousPath = type === "finding" ? editFindingForm.finding_image_path : editFindingForm.countermeasure_image_path;
+      if (previousPath) {
+        await deleteImage(previousPath);
+      }
+
+      const path = `finding-${selectedFindingId}/${type}-${timestamp}.${extension}`;
+      await uploadImage(file, path);
+      
+      const signedUrl = await getSignedImageUrl(path);
+
+      setEditFindingForm((prev) => ({
+        ...prev,
+        [type === "finding" ? "finding_image_path" : "countermeasure_image_path"]: path,
+      }));
+
+      if (type === "finding") {
+        setEditFindingPreview(signedUrl);
+      } else {
+        setEditCountermeasurePreview(signedUrl);
+      }
+    } catch (err) {
+      console.error(`Error uploading ${type} image:`, err);
+      alert(`Error al subir la imagen de ${type}.`);
+      e.target.value = "";
+    } finally {
+      if (type === "finding") {
+        setUploadingFinding(false);
+      } else {
+        setUploadingCountermeasure(false);
+      }
+    }
+  };
+
+  const handleRemoveEditImage = async (type) => {
+    const path = type === "finding" ? editFindingForm.finding_image_path : editFindingForm.countermeasure_image_path;
+    if (!path) return;
+
+    if (type === "finding") {
+      setUploadingFinding(true);
+    } else {
+      setUploadingCountermeasure(true);
+    }
+
+    try {
+      await deleteImage(path);
+      setEditFindingForm((prev) => ({
+        ...prev,
+        [type === "finding" ? "finding_image_path" : "countermeasure_image_path"]: "",
+      }));
+      if (type === "finding") {
+        setEditFindingPreview("");
+        const input = document.getElementById("edit-audit-finding-image-input");
+        if (input) input.value = "";
+      } else {
+        setEditCountermeasurePreview("");
+        const input = document.getElementById("edit-audit-countermeasure-image-input");
+        if (input) input.value = "";
+      }
+    } catch (err) {
+      console.error("Error deleting image:", err);
+    } finally {
+      if (type === "finding") {
+        setUploadingFinding(false);
+      } else {
+        setUploadingCountermeasure(false);
+      }
+    }
   };
 
   const handleUpdateFinding = async (e) => {
@@ -620,7 +746,9 @@ const DetalleAuditoria = () => {
                       )}
                       <td className="cell-id">{f.id}</td>
                       <td className="cell-desc" style={{ whiteSpace: 'normal', wordBreak: 'break-word', minWidth: '220px' }}>
-                        {f.description}
+                        <div>{f.description}</div>
+                        <FindingImage path={f.finding_image_path} label="Imagen del Hallazgo" />
+                        <FindingImage path={f.countermeasure_image_path} label="Imagen de Contramedida" />
                       </td>
                       <td>{f.location}</td>
                       <td>
@@ -795,6 +923,21 @@ const DetalleAuditoria = () => {
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Tipo de Hallazgo</label>
+                    <select 
+                      value={editFindingForm.finding_type} 
+                      onChange={(e) => setEditFindingForm({...editFindingForm, finding_type: e.target.value})} 
+                      required={role !== "Supervisor"}
+                      disabled={role === "Supervisor"}
+                    >
+                      <option value="General">General</option>
+                      <option value="Auditoría">Auditoría</option>
+                      <option value="Incidente">Incidente</option>
+                      <option value="5S">5S</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
                     <label>Estatus</label>
                     <select 
                       value={editFindingForm.status} 
@@ -841,6 +984,52 @@ const DetalleAuditoria = () => {
                       onChange={(e) => setEditFindingForm({...editFindingForm, conclusion_date: e.target.value})} 
                       disabled={role === "Security"}
                     />
+                  </div>
+
+                  {/* Imagen del Hallazgo */}
+                  <div className="form-group">
+                    <label>Imagen del Hallazgo</label>
+                    <input
+                      id="edit-audit-finding-image-input"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={(e) => handleEditImageUpload(e, "finding")}
+                      disabled={uploadingFinding || role === "Supervisor"}
+                    />
+                    {uploadingFinding && <span className="upload-loading">Subiendo...</span>}
+                    {editFindingPreview && (
+                      <div className="image-preview-container" style={{ marginTop: "10px", position: "relative" }}>
+                        <img src={editFindingPreview} alt="Preview Hallazgo" style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "6px" }} />
+                        {role !== "Supervisor" && (
+                          <button type="button" className="btn-cancel" style={{ display: "block", marginTop: "5px", padding: "2px 8px", fontSize: "0.8rem" }} onClick={() => handleRemoveEditImage("finding")}>
+                            Eliminar imagen
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Imagen de Contramedida */}
+                  <div className="form-group">
+                    <label>Imagen de Contramedida</label>
+                    <input
+                      id="edit-audit-countermeasure-image-input"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={(e) => handleEditImageUpload(e, "countermeasure")}
+                      disabled={uploadingCountermeasure || role === "Security"}
+                    />
+                    {uploadingCountermeasure && <span className="upload-loading">Subiendo...</span>}
+                    {editCountermeasurePreview && (
+                      <div className="image-preview-container" style={{ marginTop: "10px", position: "relative" }}>
+                        <img src={editCountermeasurePreview} alt="Preview Contramedida" style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "6px" }} />
+                        {role !== "Security" && (
+                          <button type="button" className="btn-cancel" style={{ display: "block", marginTop: "5px", padding: "2px 8px", fontSize: "0.8rem" }} onClick={() => handleRemoveEditImage("countermeasure")}>
+                            Eliminar imagen
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
