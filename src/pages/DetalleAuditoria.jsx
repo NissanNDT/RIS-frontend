@@ -354,8 +354,9 @@ const DetalleAuditoria = () => {
     e.preventDefault();
     setSaving(true);
     try {
+      const { level, ...restOfForm } = findingForm;
       const payload = {
-        ...findingForm,
+        ...restOfForm,
         id_audit: id,
         id_plant: audit.id_plant,
         id_area: audit.id_area

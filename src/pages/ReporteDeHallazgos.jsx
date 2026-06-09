@@ -168,7 +168,6 @@ const ReporteDeHallazgos = () => {
       finding_category: formData.finding_category,
       finding_image_path: formData.finding_image_path || null,
       countermeasure_image_path: formData.countermeasure_image_path || null,
-      level: "A",
       finding_type: formData.finding_type
     };
 
