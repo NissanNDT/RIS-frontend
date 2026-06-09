@@ -480,7 +480,13 @@ const AdminPanel = () => {
             onChange={(e) => set("id_user", e.target.value)}
           >
             <option value="">— Seleccionar —</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users
+              .filter((u) => roleName(u.id_role) === "Supervisor")
+              .map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name}
+                </option>
+              ))}
           </select>
           {err.id_user && <span className="modal-field-error">{err.id_user}</span>}
         </div>

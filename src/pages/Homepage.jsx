@@ -67,11 +67,10 @@ const Homepage = () => {
       setAudits(auditData);
       setPlants(plantData);
       setAreas(areaData);
+      setLoading(false);
     } catch (error) {
       console.error("Error cargando datos:", error);
-      setError("No se pudieron cargar algunos datos del sistema. Mostrando información parcial o vacía.");
-    } finally {
-      setLoading(false);
+      // Se mantiene en estado de carga (loading) y no se muestra mensaje de error.
     }
   };
 
