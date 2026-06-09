@@ -1412,7 +1412,7 @@ button.submit-button:disabled {
   line-height: 1;
   margin-bottom: 4px;
 }
-
+/* */
 .stat-info p {
   font-size: 0.75rem;
   color: var(--text-tertiary);
@@ -1848,4 +1848,4 @@ button.submit-button:disabled {
   color: #c62828;
   border: 1px solid #ffcdd2;
 }
-
+
