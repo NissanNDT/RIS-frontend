@@ -82,7 +82,7 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="login-form">
           <label>
-            Correo
+            Correo -debe ir en minusculas-
             <input
               type="email"
               name="email"
