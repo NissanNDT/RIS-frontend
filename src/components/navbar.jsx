@@ -41,7 +41,7 @@ const Navbar = () => {
     { path: "/adminIncidentes", label: "Admin Incidentes" },
     { path: "/auditorias", label: "Auditorias" },
     { path: "/misHallazgos", label: "Hallazgos que Reporte" },
-    ...(role === "Admin" ? [{ path: "/adminPanel", label: "⚙️ Panel Admin" }] : []),
+    ...(role === "Admin" ? [{ path: "/adminPanel", label: "Panel Admin" }] : []),
   ];
 
 

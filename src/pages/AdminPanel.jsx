@@ -11,13 +11,13 @@ import "../App.css";
 
 // ─── Tabs ──────────────────────────────────────────────────────────────────
 const TABS = [
-  { key: "areas",    label: "Áreas",       icon: "🗂️" },
-  { key: "plants",   label: "Plantas",     icon: "🏭" },
-  { key: "users",    label: "Usuarios",    icon: "👥" },
-  { key: "svByArea", label: "SV por Área", icon: "🔗" },
+  { key: "areas",    label: "Áreas" },
+  { key: "plants",   label: "Plantas" },
+  { key: "users",    label: "Usuarios" },
+  { key: "svByArea", label: "SV por Área" },
 ];
 
-const EMPTY_AREA    = { nombre: "" };
+const EMPTY_AREA    = { name: "" };
 const EMPTY_PLANT   = { name: "" };
 const EMPTY_USER    = { full_name: "", email: "", password: "", id_plant: "", id_role: "" };
 const EMPTY_SV      = { id_plant: "", id_area: "", id_user: "" };
@@ -120,7 +120,7 @@ const AdminPanel = () => {
   const openEdit = (tab, item) => {
     setFormErr({});
     let data;
-    if (tab === "areas")    data = { nombre: item.nombre };
+    if (tab === "areas")    data = { name: item.name };
     if (tab === "plants")   data = { name: item.name };
     if (tab === "users")    data = { full_name: item.full_name, email: item.email, password: "", id_plant: item.id_plant, id_role: item.id_role };
     if (tab === "svByArea") data = { id_plant: item.id_plant, id_area: item.id_area, id_user: item.id_user };
@@ -136,7 +136,7 @@ const AdminPanel = () => {
     setLoading(true);
     try {
       if (tab === "areas") {
-        mode === "create" ? await createArea(data.nombre) : await updateArea(id, data.nombre);
+        mode === "create" ? await createArea(data.name) : await updateArea(id, data.name);
       }
       if (tab === "plants") {
         mode === "create" ? await createPlant(data.name) : await updatePlant(id, data.name);
@@ -214,11 +214,11 @@ const AdminPanel = () => {
           {areas.map((a) => (
             <tr key={a.id}>
               <td className="cell-id">{a.id}</td>
-              <td><strong>{a.nombre}</strong></td>
+              <td><strong>{a.name}</strong></td>
               <td>
                 <div className="admin-actions">
                   <button className="btn-edit" onClick={() => openEdit("areas", a)}>✏️ Editar</button>
-                  <button className="btn-danger" onClick={() => setConfirm({ tab: "areas", id: a.id, name: a.nombre })}>🗑️</button>
+                  <button className="btn-danger" onClick={() => setConfirm({ tab: "areas", id: a.id, name: a.name })}>🗑️</button>
                 </div>
               </td>
             </tr>
@@ -351,13 +351,13 @@ const AdminPanel = () => {
           Nombre del Área <span className="modal-required">*</span>
         </label>
         <input
-          className={`modal-input${err.nombre ? " modal-input-error" : ""}`}
-          value={data.nombre}
-          onChange={(e) => set("nombre", e.target.value)}
+          className={`modal-input${err.name ? " modal-input-error" : ""}`}
+          value={data.name}
+          onChange={(e) => set("name", e.target.value)}
           placeholder="Ej. Producción"
           autoFocus
         />
-        {err.nombre && <span className="modal-field-error">{err.nombre}</span>}
+        {err.name && <span className="modal-field-error">{err.name}</span>}
       </div>
     );
 
@@ -468,7 +468,7 @@ const AdminPanel = () => {
             onChange={(e) => set("id_area", e.target.value)}
           >
             <option value="">— Seleccionar —</option>
-            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           {err.id_area && <span className="modal-field-error">{err.id_area}</span>}
         </div>
@@ -508,13 +508,13 @@ const AdminPanel = () => {
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="animate-in" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div>
-            <h1 style={{ margin: 0, textAlign: "left" }}>⚙️ Panel de Administrador</h1>
+            <h1 style={{ margin: 0, textAlign: "left" }}>Panel de Administrador</h1>
             <p style={{ margin: "6px 0 0", color: "var(--text-secondary)", fontSize: "0.95rem" }}>
               Gestión de catálogos del sistema — solo acceso Admin
             </p>
           </div>
           <span className="category-badge" style={{ fontSize: "0.85rem", padding: "6px 14px" }}>
-            👑 Admin
+            Admin
           </span>
         </div>
 
