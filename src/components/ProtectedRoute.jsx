@@ -33,6 +33,11 @@ const ProtectedRoute = ({ children }) => {
     }
   }
 
+  // Solo Admin puede acceder al panel de administración
+  if (location.pathname.startsWith("/adminPanel") && role !== "Admin") {
+    return <Navigate to="/" replace />;
+  }
+
   // Con sesión y permisos → renderizar la página solicitada
   return children;
 };

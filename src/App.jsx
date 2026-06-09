@@ -13,6 +13,7 @@ import Auditorias from "./pages/Auditorias";
 import DetalleAuditoria from "./pages/DetalleAuditoria";
 import LlenadoFormatoIncidente from "./pages/LlenadoFormatoIncidente";
 import HallazgosQueReporte from "./pages/HallazgosQueReporte";
+import AdminPanel from "./pages/AdminPanel";
 import { isTokenExpired } from "./utils/auth";
 import { logoutRequest } from "./services/authService";
 
@@ -47,6 +48,7 @@ function App() {
         <Route path="/auditorias/:id" element={<ProtectedRoute><DetalleAuditoria /></ProtectedRoute>} />
         <Route path="/llenadoFormatoIncidente" element={<ProtectedRoute><LlenadoFormatoIncidente /></ProtectedRoute>} />
         <Route path="/misHallazgos" element={<ProtectedRoute><HallazgosQueReporte /></ProtectedRoute>} />
+        <Route path="/adminPanel" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
         {/* demás rutas */}
       </Routes>
     </BrowserRouter>

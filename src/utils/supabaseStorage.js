@@ -57,6 +57,9 @@ export const deleteImage = async (path) => {
  */
 export const getSignedImageUrl = async (path, expiresIn = 3600) => {
   if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
   try {
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
@@ -129,6 +132,9 @@ export const deleteIncidentImage = async (path) => {
  */
 export const getSignedIncidentImageUrl = async (path, expiresIn = 3600) => {
   if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
   try {
     const { data, error } = await supabase.storage
       .from(INCIDENT_BUCKET_NAME)

@@ -30,6 +30,8 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  const role = localStorage.getItem("role");
+
   const links = [
     { path: "/", label: "Home" },
     { path: "/contact", label: "Contacto" },
@@ -38,8 +40,10 @@ const Navbar = () => {
     { path: "/reporteIncidente", label: "Reportar Incidente" },
     { path: "/adminIncidentes", label: "Admin Incidentes" },
     { path: "/auditorias", label: "Auditorias" },
-    {path: "/misHallazgos", label: "Hallazgos que Reporte"}
+    { path: "/misHallazgos", label: "Hallazgos que Reporte" },
+    ...(role === "Admin" ? [{ path: "/adminPanel", label: "⚙️ Panel Admin" }] : []),
   ];
+
 
   return (
     <>
