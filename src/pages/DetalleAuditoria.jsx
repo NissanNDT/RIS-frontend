@@ -79,6 +79,10 @@ const DetalleAuditoria = () => {
   const [editCountermeasurePreview, setEditCountermeasurePreview] = useState("");
   const [uploadingFinding, setUploadingFinding] = useState(false);
   const [uploadingCountermeasure, setUploadingCountermeasure] = useState(false);
+  
+  const [addDraftId, setAddDraftId] = useState("");
+  const [addFindingPreview, setAddFindingPreview] = useState("");
+  const [uploadingAddFinding, setUploadingAddFinding] = useState(false);
 
   // Bulk actions states
   const [selectedFindings, setSelectedFindings] = useState([]);
@@ -662,7 +666,9 @@ const DetalleAuditoria = () => {
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
-      setFindingForm({ description: "", location: "", level: "A", reference_to_the_standard: "", finding_category: "Condición Insegura" });
+      setFindingForm({ description: "", location: "", level: "A", reference_to_the_standard: "", finding_category: "Condición Insegura", finding_image_path: "" });
+      setAddFindingPreview("");
+      setAddDraftId("");
       const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
     } catch (err) {
@@ -672,6 +678,99 @@ const DetalleAuditoria = () => {
       setSaving(false);
     }
   };
+
+  const handleOpenAddModal = () => {
+    const draft = "temp-" + Date.now() + Math.random().toString(36).substring(2, 7);
+    setAddDraftId(draft);
+    setAddFindingPreview("");
+    setFindingForm({
+      description: "",
+      location: "",
+      level: "A",
+      reference_to_the_standard: "",
+      finding_category: "Condición Insegura",
+      finding_image_path: "",
+    });
+    setShowAddFindingModal(true);
+  };
+
+  const handleCloseAddModal = async () => {
+    const path = findingForm.finding_image_path;
+    if (path) {
+      try {
+        await deleteImage(path);
+      } catch (err) {
+        console.error("Error deleting temp image on cancel:", err);
+      }
+    }
+    setAddFindingPreview("");
+    setAddDraftId("");
+    setShowAddFindingModal(false);
+  };
+
+  const handleAddImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validationError = validateImage(file);
+    if (validationError) {
+      alert(validationError);
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingAddFinding(true);
+
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const extension = file.name.split(".").pop().toLowerCase();
+      
+      const previousPath = findingForm.finding_image_path;
+      if (previousPath) {
+        await deleteImage(previousPath);
+      }
+
+      const path = `finding-${addDraftId}/finding-${timestamp}.${extension}`;
+      await uploadImage(file, path);
+      
+      const signedUrl = await getSignedImageUrl(path);
+
+      setFindingForm((prev) => ({
+        ...prev,
+        finding_image_path: path,
+      }));
+      setAddFindingPreview(signedUrl);
+    } catch (err) {
+      console.error("Error uploading finding image:", err);
+      alert("Error al subir la imagen del hallazgo.");
+      e.target.value = "";
+    } finally {
+      setUploadingAddFinding(false);
+    }
+  };
+
+  const handleRemoveAddImage = async () => {
+    const path = findingForm.finding_image_path;
+    if (!path) return;
+
+    setUploadingAddFinding(true);
+
+    try {
+      await deleteImage(path);
+      setFindingForm((prev) => ({
+        ...prev,
+        finding_image_path: "",
+      }));
+      setAddFindingPreview("");
+      const input = document.getElementById("add-audit-finding-image-input");
+      if (input) input.value = "";
+    } catch (err) {
+      console.error("Error deleting image:", err);
+    } finally {
+      setUploadingAddFinding(false);
+    }
+  };
+
 
   const openEditFinding = (finding) => {
     setSelectedFindingId(finding.id);
@@ -810,7 +909,20 @@ const DetalleAuditoria = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateFinding(selectedFindingId, editFindingForm);
+      const payload = { ...editFindingForm };
+      
+      // Clean dates to null if they are empty strings
+      if (payload.conclusion_date === "") {
+        payload.conclusion_date = null;
+      }
+      if (payload.verification_date === "") {
+        payload.verification_date = null;
+      }
+      
+      // Remove fields not present in backend update schema to be safe
+      delete payload.finding_type;
+      
+      await updateFinding(selectedFindingId, payload);
       setShowEditFindingModal(false);
       const updatedFindings = await getFindingsByAuditId(id);
       setFindings(updatedFindings);
@@ -908,7 +1020,7 @@ const DetalleAuditoria = () => {
                 📥 Exportar a Excel
               </button>
               {(role !== "Supervisor" && role !== "Admin") && (
-                <button className="btn-new-audit" onClick={() => setShowAddFindingModal(true)}>
+                <button className="btn-new-audit" onClick={handleOpenAddModal}>
                   + Agregar Hallazgo
                 </button>
               )}
@@ -1357,7 +1469,7 @@ const DetalleAuditoria = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h2>Nuevo Hallazgo</h2>
-              <button className="btn-close" onClick={() => setShowAddFindingModal(false)}>&times;</button>
+              <button className="btn-close" onClick={handleCloseAddModal}>&times;</button>
             </div>
             <form onSubmit={handleCreateFinding}>
               <div className="modal-body">
@@ -1422,10 +1534,32 @@ const DetalleAuditoria = () => {
                       <option value="Condición NG">Condición NG</option>
                     </select>
                   </div>
+
+                  {/* Imagen del Hallazgo */}
+                  <div className="form-group">
+                    <label>Imagen del Hallazgo</label>
+                    <input
+                      id="add-audit-finding-image-input"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={handleAddImageUpload}
+                      disabled={uploadingAddFinding}
+                    />
+                    {uploadingAddFinding && <span className="upload-loading">Subiendo...</span>}
+                    {addFindingPreview && (
+                      <div className="image-preview-container" style={{ marginTop: "10px", position: "relative" }}>
+                        <img src={addFindingPreview} alt="Preview Hallazgo" style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "6px" }} />
+                        <button type="button" className="btn-cancel" style={{ display: "block", marginTop: "5px", padding: "2px 8px", fontSize: "0.8rem" }} onClick={handleRemoveAddImage}>
+                          Eliminar imagen
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={() => setShowAddFindingModal(false)}>Cancelar</button>
+                <button type="button" className="btn-cancel" onClick={handleCloseAddModal}>Cancelar</button>
                 <button type="submit" className="btn-save" disabled={saving}>
                   {saving ? "Guardando..." : "Guardar Hallazgo"}
                 </button>

@@ -725,6 +725,7 @@
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .form-page h1 {
@@ -741,12 +742,15 @@
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-card);
   animation: fadeInUp 0.6s var(--ease-out) 0.1s both;
+  box-sizing: border-box;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+  width: 100%;
+  max-width: 100%;
 }
 
 label {
@@ -758,6 +762,12 @@ label {
   gap: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 textarea,
@@ -771,6 +781,10 @@ select {
   color: var(--text-primary);
   font-family: var(--font-sans);
   transition: all var(--transition-base);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 textarea:focus,
