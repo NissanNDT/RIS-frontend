@@ -217,22 +217,17 @@ const AdminIncidentes = () => {
   const startEdit = (inc) => {
     setEditingId(inc.id || inc.incident_folio);
     setEditForm({
+      date: fmtDateInput(inc.date),
+      time: inc.time || "",
       level: inc.level || "",
-      description: inc.description || "",
-      root_cause: inc.root_cause || "",
-      id_responsible_user: inc.id_responsible_user || "",
-      id_general_sv: inc.id_general_sv || "",
-      id_junior: inc.id_junior || "",
-      incident_mechanism: inc.incident_mechanism || "",
-      injury: inc.injury || "",
-      id_cost_center: inc.id_cost_center || "",
       id_plant: inc.id_plant || "",
       id_area: inc.id_area || "",
-      incident_type: inc.incident_type || "",
-      status: inc.status || "abierto",
-      follow_up_date: inc.follow_up_date || "",
-      immediate_actions: inc.immediate_actions || "",
-      corrective_actions: inc.corrective_actions || "",
+      location: inc.location || "",
+      incident_mechanism: inc.incident_mechanism || "",
+      injury: inc.injury || "",
+      description: inc.description || "",
+      root_cause: inc.root_cause || "",
+      id_cost_center: inc.id_cost_center || "",
     });
     setSuccessMsg("");
   };
@@ -1036,59 +1031,60 @@ const AdminIncidentes = () => {
               <div className="modal-body">
                 <div className="audit-form-grid">
                   <div className="form-group">
+                    <label>Fecha</label>
+                    <input type="date" name="date" value={editForm.date} onChange={handleEditChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Hora</label>
+                    <input type="time" name="time" value={editForm.time} onChange={handleEditChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Nivel</label>
+                    <select name="level" value={editForm.level} onChange={handleEditChange} required>
+                      <option value="">Seleccione nivel</option>
+                      {LEVEL_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
                     <label>Planta</label>
-                    <select name="id_plant" value={editForm.id_plant} onChange={handleEditChange}>
+                    <select name="id_plant" value={editForm.id_plant} onChange={handleEditChange} required>
                       <option value="">Seleccione planta</option>
                       {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Área</label>
-                    <select name="id_area" value={editForm.id_area} onChange={handleEditChange}>
+                    <select name="id_area" value={editForm.id_area} onChange={handleEditChange} required>
                       <option value="">Seleccione área</option>
                       {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre || a.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Ubicación</label>
+                    <input type="text" name="location" value={editForm.location} onChange={handleEditChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Mecanismo</label>
+                    <input type="text" name="incident_mechanism" value={editForm.incident_mechanism} onChange={handleEditChange} />
+                  </div>
+                  <div className="form-group">
+                    <label>Lesión</label>
+                    <input type="text" name="injury" value={editForm.injury} onChange={handleEditChange} />
+                  </div>
+                  <div className="form-group">
                     <label>Centro de Costo</label>
-                    <select name="id_cost_center" value={editForm.id_cost_center} onChange={handleEditChange}>
+                    <select name="id_cost_center" value={editForm.id_cost_center} onChange={handleEditChange} required>
                       <option value="">Seleccione centro de costo</option>
                       {costCenters.map((cc) => <option key={cc.id} value={cc.id}>{cc.name || cc.nombre}</option>)}
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Tipo de Incidente</label>
-                    <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange}>
-                      {TIPO_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Nivel</label>
-                    <select name="level" value={editForm.level} onChange={handleEditChange}>
-                      {LEVEL_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Estatus</label>
-                    <select name="status" value={editForm.status} onChange={handleEditChange}>
-                      {STATUS_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Fecha Límite Seguimiento</label>
-                    <input type="date" name="follow_up_date" value={editForm.follow_up_date} onChange={handleEditChange} />
-                  </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Descripción</label>
-                    <textarea name="description" value={editForm.description} onChange={handleEditChange} rows={2} />
+                    <textarea name="description" value={editForm.description} onChange={handleEditChange} rows={2} required />
                   </div>
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>Acciones Inmediatas</label>
-                    <textarea name="immediate_actions" value={editForm.immediate_actions} onChange={handleEditChange} rows={2} />
-                  </div>
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>Acciones Correctivas / Preventivas</label>
-                    <textarea name="corrective_actions" value={editForm.corrective_actions} onChange={handleEditChange} rows={2} />
+                    <label>Causa Raíz</label>
+                    <textarea name="root_cause" value={editForm.root_cause} onChange={handleEditChange} rows={2} />
                   </div>
                 </div>
               </div>
