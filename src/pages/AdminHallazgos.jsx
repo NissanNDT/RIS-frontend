@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { getAllFindings, updateFinding, deleteFinding, getPlants, getAreas, getUsers } from "../services/findingService";
 import XLSX from "xlsx-js-style";
 import FindingImage from "../components/FindingImage";
@@ -43,10 +44,22 @@ const formatDateInput = (d) => {
 };
 
 const AdminHallazgos = () => {
+  const location = useLocation();
   const [findings, setFindings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.search) setSearch(location.state.search);
+      if (location.state.filterPlant) setFilterPlant(String(location.state.filterPlant));
+      if (location.state.filterCategory) setFilterCategory(location.state.filterCategory);
+      if (location.state.filterStatus) setFilterStatus(location.state.filterStatus);
+      if (location.state.filterLevel) setFilterLevel(location.state.filterLevel);
+      if (location.state.filterArea) setFilterArea(String(location.state.filterArea));
+    }
+  }, [location.state]);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLevel, setFilterLevel] = useState("");

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getAllIncidents, updateIncident, deleteIncident, getIncidentFormatByIncident } from "../services/incidentService";
 import { getPlants, getAreas, getUsers } from "../services/findingService";
 import XLSX from "xlsx-js-style";
@@ -59,11 +59,21 @@ const fmtDateInput = (d) => (d ? new Date(d).toISOString().split("T")[0] : "");
 /* ════════════════════════════════════════════════════════════ */
 const AdminIncidentes = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = localStorage.getItem("role");
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.search) setSearch(location.state.search);
+      if (location.state.filterPlant) setFilterPlant(String(location.state.filterPlant));
+      if (location.state.filterLevel) setFilterLevel(location.state.filterLevel);
+      if (location.state.filterArea) setFilterArea(String(location.state.filterArea));
+    }
+  }, [location.state]);
   const [filterDate, setFilterDate] = useState("");
   const [filterPlant, setFilterPlant] = useState("");
   const [filterLevel, setFilterLevel] = useState("");

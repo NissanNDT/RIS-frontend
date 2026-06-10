@@ -2,9 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import api from "../api/axios";
 import { FiAlertTriangle, FiCheckCircle, FiFileText, FiActivity, FiShield, FiBarChart2, FiClipboard, FiClock } from "react-icons/fi";
+import DashboardDetailModal from "../components/DashboardDetailModal";
 import "../App.css";
 
-const BarChart = ({ data, color = "#C8102E" }) => {
+const BarChart = ({ data, color = "#C8102E", onBarClick }) => {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
   const maxVal = Math.max(...entries.map(([, v]) => v), 1);
 
@@ -15,7 +16,21 @@ const BarChart = ({ data, color = "#C8102E" }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       {entries.map(([name, count]) => (
-        <div key={name} style={{ display: "grid", gridTemplateColumns: "110px 1fr 30px", alignItems: "center", gap: "10px" }}>
+        <div 
+          key={name} 
+          onClick={() => onBarClick && onBarClick(name)}
+          className="barchart-row-interactive"
+          style={{ 
+            display: "grid", 
+            gridTemplateColumns: "110px 1fr 30px", 
+            alignItems: "center", 
+            gap: "10px",
+            cursor: onBarClick ? "pointer" : "default",
+            padding: "6px 8px",
+            borderRadius: "6px",
+            transition: "background 0.2s"
+          }}
+        >
           <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }} title={name}>{name}</span>
           <div style={{ height: "8px", background: "var(--bg-elevated)", borderRadius: "4px", overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${(count / maxVal) * 100}%`, background: color, borderRadius: "4px", transition: "width 0.6s ease" }} />
@@ -38,6 +53,12 @@ const Homepage = () => {
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Estados para Modal Detallado
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalData, setModalData] = useState([]);
+  const [modalType, setModalType] = useState("incident"); // "incident" | "finding" | "audit"
 
   // Fetch datos (Un solo consumo por endpoint)
   useEffect(() => {
@@ -165,6 +186,120 @@ const Homepage = () => {
     };
   }, [incidents, findings, audits, plantsMap, areasMap]);
 
+  // Click Handlers for KPI cards
+  const handleKPIFindClick = (statusFilter = null) => {
+    let dataToUse = findings;
+    let subtitle = "Todos los registros";
+    if (statusFilter) {
+      dataToUse = findings.filter(f => f.status === statusFilter);
+      subtitle = `Estatus: ${statusFilter}`;
+    }
+    setModalTitle(`Detalle de Hallazgos (${subtitle})`);
+    setModalData(dataToUse);
+    setModalType("finding");
+    setModalOpen(true);
+  };
+
+  const handleKPIIncClick = () => {
+    setModalTitle("Detalle de Incidentes (Todos)");
+    setModalData(incidents);
+    setModalType("incident");
+    setModalOpen(true);
+  };
+
+  const handleKPIAuditClick = () => {
+    setModalTitle("Detalle de Auditorías (Todas)");
+    setModalData(audits);
+    setModalType("audit");
+    setModalOpen(true);
+  };
+
+  // Click Handlers for Pyramid Levels
+  const handlePyramidLevelClick = (level) => {
+    const filtered = incidents.filter(i => {
+      if (!i.level) return false;
+      const parts = String(i.level).split(',').map(s => s.trim().toUpperCase());
+      return parts.includes(level);
+    });
+    setModalTitle(`Incidentes - Nivel ${level}`);
+    setModalData(filtered);
+    setModalType("incident");
+    setModalOpen(true);
+  };
+
+  // Click Handlers for Classification Cards
+  const handleCategoryClick = (category) => {
+    const filtered = findings.filter(f => f.finding_category === category);
+    setModalTitle(`Hallazgos - Clasificación: ${category}`);
+    setModalData(filtered);
+    setModalType("finding");
+    setModalOpen(true);
+  };
+
+  // Click Handlers for Bar Chart segments (Plants)
+  const handlePlantFindClick = (plantName) => {
+    const filtered = findings.filter(f => {
+      const pId = f.id_plant ? String(f.id_plant) : null;
+      const p = pId && plantsMap[pId] ? plantsMap[pId] : (f.id_plant ? `Planta ${f.id_plant}` : "Sin Planta");
+      return p === plantName;
+    });
+    setModalTitle(`Hallazgos en Planta: ${plantName}`);
+    setModalData(filtered);
+    setModalType("finding");
+    setModalOpen(true);
+  };
+
+  const handlePlantIncClick = (plantName) => {
+    const filtered = incidents.filter(i => {
+      const pId = i.id_plant ? String(i.id_plant) : null;
+      const p = pId && plantsMap[pId] ? plantsMap[pId] : (i.id_plant ? `Planta ${i.id_plant}` : "Sin Planta");
+      return p === plantName;
+    });
+    setModalTitle(`Incidentes en Planta: ${plantName}`);
+    setModalData(filtered);
+    setModalType("incident");
+    setModalOpen(true);
+  };
+
+  // Click Handlers for Bar Chart segments (Areas)
+  const handleAreaFindClick = (areaName) => {
+    const filtered = findings.filter(f => {
+      const aId = f.id_area ? String(f.id_area) : null;
+      const a = aId && areasMap[aId] ? areasMap[aId] : (f.id_area ? `Área ${f.id_area}` : "Sin Área");
+      return a === areaName;
+    });
+    setModalTitle(`Hallazgos en Área: ${areaName}`);
+    setModalData(filtered);
+    setModalType("finding");
+    setModalOpen(true);
+  };
+
+  const handleAreaIncClick = (areaName) => {
+    const filtered = incidents.filter(i => {
+      const aId = i.id_area ? String(i.id_area) : null;
+      const a = aId && areasMap[aId] ? areasMap[aId] : (i.id_area ? `Área ${i.id_area}` : "Sin Área");
+      return a === areaName;
+    });
+    setModalTitle(`Incidentes en Área: ${areaName}`);
+    setModalData(filtered);
+    setModalType("incident");
+    setModalOpen(true);
+  };
+
+  // Click Handlers for Single Registries
+  const handleSingleFindingClick = (item) => {
+    setModalTitle(`Detalle de Hallazgo: ${item.finding_folio || `ID #${item.id}`}`);
+    setModalData([item]);
+    setModalType("finding");
+    setModalOpen(true);
+  };
+
+  const handleSingleIncidentClick = (item) => {
+    setModalTitle(`Detalle de Incidente: ${item.folio || `ID #${item.id}`}`);
+    setModalData([item]);
+    setModalType("incident");
+    setModalOpen(true);
+  };
 
   return (
     <div className="homepage">
@@ -177,7 +312,8 @@ const Homepage = () => {
         .dash-card { background: rgba(255,255,255,0.75); border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); }
         .dash-card-title { font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 20px; }
         
-        .class-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px 20px 14px; border: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .class-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px 20px 14px; border: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; cursor: pointer; transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s; }
+        .class-card:hover { transform: translateY(-2px); background: var(--bg-card-hover); box-shadow: var(--shadow-sm); }
         .class-info { display: flex; align-items: baseline; gap: 10px; }
         .class-count { font-size: 2rem; font-weight: 800; color: var(--text-primary); line-height: 1; }
         .class-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
@@ -185,6 +321,29 @@ const Homepage = () => {
         
         .stat-icon.in-review { color: #8E24AA; background: rgba(142, 36, 170, 0.1); }
         .stat-icon.audit { color: #00ACC1; background: rgba(0, 172, 193, 0.1); }
+
+        .stat-card.glass {
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        .stat-card.glass:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-md);
+          background: rgba(255, 255, 255, 0.9);
+        }
+
+        .barchart-row-interactive:hover {
+          background: rgba(0, 0, 0, 0.04);
+        }
+
+        .latest-record-card {
+          cursor: pointer;
+          transition: transform 0.2s, background-color 0.2s;
+        }
+        .latest-record-card:hover {
+          transform: translateX(4px);
+          background: var(--bg-card-hover) !important;
+        }
 
         /* Inline Pyramid overrides */
         .pyr-container { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 0; }
@@ -223,7 +382,7 @@ const Homepage = () => {
           {/* Tarjetas Resumen */}
           <section className="dash-section animate-in animate-in-delay-3">
             <div className="dash-grid-4">
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={() => handleKPIFindClick()}>
                 <div className="stat-icon finding"><FiFileText /></div>
                 <div className="stat-info">
                   <h3>Total Hallazgos</h3>
@@ -231,7 +390,7 @@ const Homepage = () => {
                   <p>Registrados en el sistema</p>
                 </div>
               </div>
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={() => handleKPIFindClick("Abierto")}>
                 <div className="stat-icon incident"><FiAlertTriangle /></div>
                 <div className="stat-info">
                   <h3>Hallazgos Abiertos</h3>
@@ -239,7 +398,7 @@ const Homepage = () => {
                   <p>Pendientes de resolución</p>
                 </div>
               </div>
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={() => handleKPIFindClick("En revisión")}>
                 <div className="stat-icon in-review"><FiClock /></div>
                 <div className="stat-info">
                   <h3>En Revisión</h3>
@@ -247,7 +406,7 @@ const Homepage = () => {
                   <p>Hallazgos bajo validación</p>
                 </div>
               </div>
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={() => handleKPIFindClick("Cerrado")}>
                 <div className="stat-icon safe"><FiCheckCircle /></div>
                 <div className="stat-info">
                   <h3>Hallazgos Cerrados</h3>
@@ -255,7 +414,7 @@ const Homepage = () => {
                   <p>Resueltos exitosamente</p>
                 </div>
               </div>
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={handleKPIIncClick}>
                 <div className="stat-icon risk"><FiActivity /></div>
                 <div className="stat-info">
                   <h3>Total Incidentes</h3>
@@ -263,7 +422,7 @@ const Homepage = () => {
                   <p>Registrados en el sistema</p>
                 </div>
               </div>
-              <div className="stat-card glass">
+              <div className="stat-card glass" onClick={handleKPIAuditClick}>
                 <div className="stat-icon audit"><FiClipboard /></div>
                 <div className="stat-info">
                   <h3>Auditorías</h3>
@@ -280,11 +439,11 @@ const Homepage = () => {
             <div className="dash-grid-2">
               <div className="dash-card">
                 <h3 className="dash-card-title">Por Planta</h3>
-                <BarChart data={stats.byPlantFind} color="#1E88E5" />
+                <BarChart data={stats.byPlantFind} color="#1E88E5" onBarClick={handlePlantFindClick} />
               </div>
               <div className="dash-card">
                 <h3 className="dash-card-title">Por Área</h3>
-                <BarChart data={stats.byAreaFind} color="#7B1FA2" />
+                <BarChart data={stats.byAreaFind} color="#7B1FA2" onBarClick={handleAreaFindClick} />
               </div>
             </div>
           </section>
@@ -295,11 +454,11 @@ const Homepage = () => {
             <div className="dash-grid-2">
               <div className="dash-card">
                 <h3 className="dash-card-title">Por Planta</h3>
-                <BarChart data={stats.byPlantInc} color="#C8102E" />
+                <BarChart data={stats.byPlantInc} color="#C8102E" onBarClick={handlePlantIncClick} />
               </div>
               <div className="dash-card">
                 <h3 className="dash-card-title">Por Área</h3>
-                <BarChart data={stats.byAreaInc} color="#FB8C00" />
+                <BarChart data={stats.byAreaInc} color="#FB8C00" onBarClick={handleAreaIncClick} />
               </div>
             </div>
           </section>
@@ -312,19 +471,19 @@ const Homepage = () => {
                 <h2 className="dash-title" style={{ marginBottom: "8px" }}><FiBarChart2 className="dash-icon" /> Pirámide de Incidentes</h2>
                 <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "16px" }}>Clasificación jerárquica de niveles.</p>
                 <div className="pyr-container">
-                  <div className="pyr-level pyr-g" onClick={() => navigate("/adminIncidentes")}>
+                  <div className="pyr-level pyr-g" onClick={() => handlePyramidLevelClick("G")}>
                     <span>G</span> <span style={{ fontSize: "1.2rem" }}>{stats.byLevel.G}</span>
                   </div>
-                  <div className="pyr-level pyr-u" onClick={() => navigate("/adminIncidentes")}>
+                  <div className="pyr-level pyr-u" onClick={() => handlePyramidLevelClick("U")}>
                     <span>U</span> <span style={{ fontSize: "1.2rem" }}>{stats.byLevel.U}</span>
                   </div>
-                  <div className="pyr-level pyr-r" onClick={() => navigate("/adminIncidentes")}>
+                  <div className="pyr-level pyr-r" onClick={() => handlePyramidLevelClick("R")}>
                     <span>R</span> <span style={{ fontSize: "1.2rem" }}>{stats.byLevel.R}</span>
                   </div>
-                  <div className="pyr-level pyr-fr1" onClick={() => navigate("/adminIncidentes")}>
+                  <div className="pyr-level pyr-fr1" onClick={() => handlePyramidLevelClick("FR1")}>
                     <span>FR1</span> <span style={{ fontSize: "1.2rem" }}>{stats.byLevel.FR1}</span>
                   </div>
-                  <div className="pyr-level pyr-fr0" onClick={() => navigate("/adminIncidentes")}>
+                  <div className="pyr-level pyr-fr0" onClick={() => handlePyramidLevelClick("FR0")}>
                     <span>FR0</span> <span style={{ fontSize: "1.2rem" }}>{stats.byLevel.FR0}</span>
                   </div>
                 </div>
@@ -335,7 +494,7 @@ const Homepage = () => {
                 <h2 className="dash-title" style={{ marginBottom: "8px" }}><FiShield className="dash-icon" /> Clasificación Hallazgos</h2>
                 <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "16px" }}>Distribución por tipo de condición.</p>
 
-                <div className="class-card">
+                <div className="class-card" onClick={() => handleCategoryClick("Acto Inseguro")}>
                   <div className="class-info">
                     <span className="class-count">{stats.actoInseguro}</span>
                     <span className="class-label">Acto Inseguro</span>
@@ -343,7 +502,7 @@ const Homepage = () => {
                   <div className="class-bar"><div style={{ height: "100%", width: stats.totalFind ? `${(stats.actoInseguro / stats.totalFind) * 100}%` : '0%', background: "#C8102E", transition: "width 0.6s ease" }} /></div>
                 </div>
 
-                <div className="class-card">
+                <div className="class-card" onClick={() => handleCategoryClick("Condición Insegura")}>
                   <div className="class-info">
                     <span className="class-count">{stats.condicionInsegura}</span>
                     <span className="class-label">Condición Insegura</span>
@@ -351,7 +510,7 @@ const Homepage = () => {
                   <div className="class-bar"><div style={{ height: "100%", width: stats.totalFind ? `${(stats.condicionInsegura / stats.totalFind) * 100}%` : '0%', background: "#FB8C00", transition: "width 0.6s ease" }} /></div>
                 </div>
 
-                <div className="class-card">
+                <div className="class-card" onClick={() => handleCategoryClick("Condición NG")}>
                   <div className="class-info">
                     <span className="class-count">{stats.condicionNG}</span>
                     <span className="class-label">Condición NG</span>
@@ -374,7 +533,12 @@ const Homepage = () => {
                     <p style={{ color: "var(--text-tertiary)", fontStyle: "italic", textAlign: "center" }}>Sin registros</p>
                   ) : (
                     stats.latestFindings.map(f => (
-                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                      <div 
+                        key={f.id} 
+                        onClick={() => handleSingleFindingClick(f)}
+                        className="latest-record-card"
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}
+                      >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "70%" }}>
                           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>{f.finding_folio || `Hallazgo #${f.id}`}</span>
                           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
@@ -398,7 +562,12 @@ const Homepage = () => {
                     <p style={{ color: "var(--text-tertiary)", fontStyle: "italic", textAlign: "center" }}>Sin registros</p>
                   ) : (
                     stats.latestIncidents.map(i => (
-                      <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                      <div 
+                        key={i.id} 
+                        onClick={() => handleSingleIncidentClick(i)}
+                        className="latest-record-card"
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}
+                      >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "70%" }}>
                           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>{i.folio || `Incidente #${i.id}`}</span>
                           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
@@ -417,6 +586,17 @@ const Homepage = () => {
           </section>
         </>
       )}
+
+      {/* Modal de Detalle */}
+      <DashboardDetailModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={modalTitle}
+        data={modalData}
+        type={modalType}
+        plantsMap={plantsMap}
+        areasMap={areasMap}
+      />
     </div>
   );
 };
