@@ -653,12 +653,12 @@ const DetalleAuditoria = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const { level, ...restOfForm } = findingForm;
       const payload = {
-        ...restOfForm,
-        id_audit: id,
-        id_plant: audit.id_plant,
-        id_area: audit.id_area
+        ...findingForm,
+        id_audit: Number(id),
+        id_plant: Number(audit.id_plant),
+        id_area: Number(audit.id_area),
+        finding_type: "Auditoría"
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
