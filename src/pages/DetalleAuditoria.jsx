@@ -658,7 +658,7 @@ const DetalleAuditoria = () => {
         id_audit: Number(id),
         id_plant: Number(audit.id_plant),
         id_area: Number(audit.id_area),
-        finding_type: "Auditoría"
+        finding_type: null
       };
       await createFinding(payload);
       setShowAddFindingModal(false);
