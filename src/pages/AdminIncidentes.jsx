@@ -1050,6 +1050,13 @@ const AdminIncidentes = () => {
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Centro de Costo</label>
+                    <select name="id_cost_center" value={editForm.id_cost_center} onChange={handleEditChange}>
+                      <option value="">Seleccione centro de costo</option>
+                      {costCenters.map((cc) => <option key={cc.id} value={cc.id}>{cc.name || cc.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
                     <label>Tipo de Incidente</label>
                     <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange}>
                       {TIPO_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -1066,10 +1073,6 @@ const AdminIncidentes = () => {
                     <select name="status" value={editForm.status} onChange={handleEditChange}>
                       {STATUS_OPTIONS.filter(o => o.value).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Responsable</label>
-                    <input name="id_responsible_user" value={editForm.id_responsible_user} onChange={handleEditChange} />
                   </div>
                   <div className="form-group">
                     <label>Fecha Límite Seguimiento</label>

@@ -14,6 +14,7 @@ import DetalleAuditoria from "./pages/DetalleAuditoria";
 import LlenadoFormatoIncidente from "./pages/LlenadoFormatoIncidente";
 import HallazgosQueReporte from "./pages/HallazgosQueReporte";
 import AdminPanel from "./pages/AdminPanel";
+import MiPerfil from "./pages/MiPerfil";
 import { isTokenExpired } from "./utils/auth";
 import { logoutRequest } from "./services/authService";
 
@@ -49,6 +50,7 @@ function App() {
         <Route path="/llenadoFormatoIncidente" element={<ProtectedRoute><LlenadoFormatoIncidente /></ProtectedRoute>} />
         <Route path="/misHallazgos" element={<ProtectedRoute><HallazgosQueReporte /></ProtectedRoute>} />
         <Route path="/adminPanel" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+        <Route path="/miPerfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
         {/* demás rutas */}
       </Routes>
     </BrowserRouter>

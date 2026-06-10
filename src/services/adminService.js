@@ -57,6 +57,11 @@ export const getUsers = async () => {
   return res.data;
 };
 
+export const getUser = async (id) => {
+  const res = await api.get(`/users/${id}`);
+  return res.data;
+};
+
 export const createUser = async (payload) => {
   const res = await api.post("/users", payload);
   return res.data;

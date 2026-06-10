@@ -99,6 +99,35 @@ const Navbar = () => {
                     {user.name || user.email || "Usuario"}
                   </span>
                 </div>
+                <button
+                  className="btn-profile"
+                  onClick={() => goTo("/miPerfil")}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    background: "transparent",
+                    border: "1px solid var(--border-default)",
+                    color: "var(--text-primary)",
+                    fontSize: "0.9rem",
+                    fontWeight: "600",
+                    borderRadius: "var(--radius-sm)",
+                    cursor: "pointer",
+                    transition: "all var(--transition-base)",
+                    fontFamily: "var(--font-sans)",
+                    marginBottom: "8px",
+                    textAlign: "center"
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "var(--bg-card-hover)";
+                    e.currentTarget.style.borderColor = "var(--border-hover)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.borderColor = "var(--border-default)";
+                  }}
+                >
+                  Mi Perfil
+                </button>
                 <button className="btn-logout" onClick={handleLogout}>
                   Cerrar sesión
                 </button>
