@@ -350,6 +350,305 @@ const DetalleAuditoria = () => {
     win.document.close();
   };
 
+  const downloadSupabaseImage = async (path) => {
+    if (!path) return null;
+    try {
+      const signedUrl = await getSignedImageUrl(path);
+      const res = await fetch(signedUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const ext = path.split('.').pop().toLowerCase();
+      const arrayBuffer = await blob.arrayBuffer();
+      return { buffer: arrayBuffer, ext: ext === 'jpg' ? 'jpeg' : ext };
+    } catch (err) {
+      console.error("Error downloading image:", path, err);
+      return null;
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      setSaving(true);
+      const ExcelJS = await import("exceljs");
+      const workbook = new ExcelJS.default.Workbook();
+      const sheet = workbook.addWorksheet("Reporte de Auditoría", {
+        views: [{ state: 'frozen', ySplit: 5 }],
+        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      });
+
+      const headerFill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFC8102E' } // Nissan Red
+      };
+      
+      const subHeaderFill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF3F4F6' } // Light gray
+      };
+
+      const whiteFont = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      const boldFont = { name: 'Segoe UI', size: 10, bold: true };
+      const regularFont = { name: 'Segoe UI', size: 10 };
+      
+      const centerAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      const leftAlign = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      
+      const thinBorder = {
+        top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+        left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+        bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+        right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+      };
+
+      sheet.columns = [
+        { key: 'no', width: 6 },
+        { key: 'lugar', width: 25 },
+        { key: 'hallazgo', width: 35 },
+        { key: 'imagen_hallazgo', width: 28 },
+        { key: 'norma', width: 18 },
+        { key: 'grado', width: 10 },
+        { key: 'correctivas', width: 35 },
+        { key: 'imagen_contramedida', width: 28 },
+        { key: 'responsable', width: 25 },
+        { key: 'fecha_conclusion', width: 16 },
+        { key: 'fecha_verif', width: 16 }
+      ];
+
+      // Row 1: Header Title
+      sheet.mergeCells("A1:K1");
+      const titleCell = sheet.getCell("A1");
+      titleCell.value = "REPORTE DE AUDITORÍA";
+      titleCell.fill = headerFill;
+      titleCell.font = { name: 'Segoe UI', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.alignment = centerAlign;
+      sheet.getRow(1).height = 40;
+
+      // Row 3-5: Info General
+      sheet.getCell("A3").value = "Folio:";
+      sheet.getCell("A3").font = boldFont;
+      sheet.getCell("B3").value = audit.audit_folio || "—";
+      sheet.getCell("B3").font = regularFont;
+
+      sheet.getCell("D3").value = "Planta:";
+      sheet.getCell("D3").font = boldFont;
+      sheet.getCell("E3").value = plantName;
+      sheet.getCell("E3").font = regularFont;
+
+      sheet.getCell("A4").value = "Área Evaluada:";
+      sheet.getCell("A4").font = boldFont;
+      sheet.getCell("B4").value = areaName;
+      sheet.getCell("B4").font = regularFont;
+
+      sheet.getCell("D4").value = "Fecha Creación:";
+      sheet.getCell("D4").font = boldFont;
+      sheet.getCell("E4").value = new Date(audit.created_at).toLocaleDateString();
+      sheet.getCell("E4").font = regularFont;
+
+      sheet.getCell("A5").value = "Auditor:";
+      sheet.getCell("A5").font = boldFont;
+      sheet.getCell("B5").value = responsibleName;
+      sheet.getCell("B5").font = regularFont;
+
+      // Section 2: Firmas (Row 7-8)
+      sheet.mergeCells("A7:K7");
+      const signaturesTitle = sheet.getCell("A7");
+      signaturesTitle.value = "FIRMAS DE CONFORMIDAD";
+      signaturesTitle.font = boldFont;
+      signaturesTitle.fill = subHeaderFill;
+      signaturesTitle.alignment = leftAlign;
+      sheet.getRow(7).height = 20;
+
+      sheet.getRow(9).height = 40; // Espacio de firma
+      sheet.getCell("B9").value = "___________________________";
+      sheet.getCell("B9").alignment = centerAlign;
+      sheet.getCell("F9").value = "___________________________";
+      sheet.getCell("F9").alignment = centerAlign;
+      sheet.getCell("J9").value = "___________________________";
+      sheet.getCell("J9").alignment = centerAlign;
+
+      sheet.getCell("B10").value = "Supervisor del Área";
+      sheet.getCell("B10").font = boldFont;
+      sheet.getCell("B10").alignment = centerAlign;
+      sheet.getCell("F10").value = "Seguridad Industrial";
+      sheet.getCell("F10").font = boldFont;
+      sheet.getCell("F10").alignment = centerAlign;
+      sheet.getCell("J10").value = "Manager o Junior";
+      sheet.getCell("J10").font = boldFont;
+      sheet.getCell("J10").alignment = centerAlign;
+
+      // Section 3: Tabla Resumen de Puntajes (Row 12-18)
+      sheet.mergeCells("A12:K12");
+      const scoreTitle = sheet.getCell("A12");
+      scoreTitle.value = "RESUMEN DE PUNTAJES";
+      scoreTitle.font = boldFont;
+      scoreTitle.fill = subHeaderFill;
+      scoreTitle.alignment = leftAlign;
+      sheet.getRow(12).height = 20;
+
+      sheet.getCell("A13").value = "Grado";
+      sheet.getCell("B13").value = "Valor";
+      sheet.getCell("C13").value = "Cantidad";
+      sheet.getCell("D13").value = "Puntos";
+      for (const col of ["A", "B", "C", "D"]) {
+        const c = sheet.getCell(`${col}13`);
+        c.font = boldFont;
+        c.fill = subHeaderFill;
+        c.border = thinBorder;
+        c.alignment = centerAlign;
+      }
+
+      const countA = findings.filter(f => f.level === "A").length;
+      const countB = findings.filter(f => f.level === "B").length;
+      const countC = findings.filter(f => f.level === "C").length;
+      const countOtros = findings.filter(f => !["A", "B", "C"].includes(f.level)).length;
+
+      const scoreRows = [
+        ["A", 9, countA, countA * 9],
+        ["B", 3, countB, countB * 3],
+        ["C", 1, countC, countC * 1],
+        ["Otros", 0, countOtros, 0]
+      ];
+
+      scoreRows.forEach((r, idx) => {
+        const rowNum = 14 + idx;
+        sheet.getCell(`A${rowNum}`).value = r[0];
+        sheet.getCell(`B${rowNum}`).value = r[1];
+        sheet.getCell(`C${rowNum}`).value = r[2];
+        sheet.getCell(`D${rowNum}`).value = r[3];
+        for (const col of ["A", "B", "C", "D"]) {
+          const c = sheet.getCell(`${col}${rowNum}`);
+          c.border = thinBorder;
+          c.alignment = centerAlign;
+          c.font = regularFont;
+        }
+      });
+
+      // Total Row
+      const totalRow = 18;
+      sheet.getCell(`A${totalRow}`).value = "TOTAL PUNTOS";
+      sheet.getCell(`A${totalRow}`).font = boldFont;
+      sheet.getCell(`D${totalRow}`).value = (countA * 9) + (countB * 3) + (countC * 1);
+      sheet.getCell(`D${totalRow}`).font = boldFont;
+      for (const col of ["A", "B", "C", "D"]) {
+        const c = sheet.getCell(`${col}${totalRow}`);
+        c.border = thinBorder;
+        c.fill = subHeaderFill;
+        c.alignment = centerAlign;
+      }
+
+      // Section 4: Tabla de Hallazgos (Row 20+)
+      sheet.mergeCells("A20:K20");
+      const findingsTitle = sheet.getCell("A20");
+      findingsTitle.value = "DETALLE DE HALLAZGOS REGISTRADOS";
+      findingsTitle.font = boldFont;
+      findingsTitle.fill = subHeaderFill;
+      findingsTitle.alignment = leftAlign;
+      sheet.getRow(20).height = 20;
+
+      const headers = [
+        "No", "Lugar / Proceso / Equipo", "Hallazgo", "Imagen del Hallazgo",
+        "Referencia Norma", "Grado", "Actividades Correctivas", "Imagen Contramedida",
+        "Responsable (Firma)", "Fecha Conclusión", "Fecha Verificación / Estatus"
+      ];
+
+      headers.forEach((h, idx) => {
+        const colLetter = String.fromCharCode(65 + idx);
+        const cell = sheet.getCell(`${colLetter}21`);
+        cell.value = h;
+        cell.font = whiteFont;
+        cell.fill = headerFill;
+        cell.alignment = centerAlign;
+        cell.border = thinBorder;
+      });
+      sheet.getRow(21).height = 28;
+
+      let currentRow = 22;
+      for (let i = 0; i < findings.length; i++) {
+        const f = findings[i];
+        sheet.getRow(currentRow).height = 120;
+
+        sheet.getCell(`A${currentRow}`).value = i + 1;
+        sheet.getCell(`B${currentRow}`).value = f.location || "—";
+        sheet.getCell(`C${currentRow}`).value = f.description || "—";
+        sheet.getCell(`E${currentRow}`).value = f.reference_to_the_standard || "—";
+        sheet.getCell(`F${currentRow}`).value = f.level || "—";
+        sheet.getCell(`G${currentRow}`).value = f.corrective_action || "—";
+        sheet.getCell(`I${currentRow}`).value = `${getUserFullName(f.id_responsible_user)}\n\n(Firma: ________________)`;
+        sheet.getCell(`J${currentRow}`).value = f.conclusion_date ? new Date(f.conclusion_date).toLocaleDateString() : "—";
+        sheet.getCell(`K${currentRow}`).value = `${f.status || "—"}${f.verification_date ? `\n(Verif: ${new Date(f.verification_date).toLocaleDateString()})` : ''}`;
+
+        for (let colIdx = 0; colIdx < 11; colIdx++) {
+          const colLetter = String.fromCharCode(65 + colIdx);
+          const cell = sheet.getCell(`${colLetter}${currentRow}`);
+          cell.border = thinBorder;
+          cell.font = regularFont;
+          
+          if (["A", "E", "F", "J", "K"].includes(colLetter)) {
+            cell.alignment = centerAlign;
+          } else {
+            cell.alignment = leftAlign;
+          }
+        }
+
+        const addImageToCell = async (path, colLetter, colIndex) => {
+          if (!path) {
+            sheet.getCell(`${colLetter}${currentRow}`).value = "Sin imagen";
+            sheet.getCell(`${colLetter}${currentRow}`).alignment = centerAlign;
+            return;
+          }
+          try {
+            const imgData = await downloadSupabaseImage(path);
+            if (imgData) {
+              const imageId = workbook.addImage({
+                buffer: imgData.buffer,
+                extension: imgData.ext
+              });
+              sheet.addImage(imageId, {
+                tl: { col: colIndex, row: currentRow - 1, xOffset: 15, yOffset: 15 },
+                ext: { width: 140, height: 120 }
+              });
+              sheet.getCell(`${colLetter}${currentRow}`).value = "";
+            } else {
+              sheet.getCell(`${colLetter}${currentRow}`).value = "Sin imagen";
+              sheet.getCell(`${colLetter}${currentRow}`).alignment = centerAlign;
+            }
+          } catch (e) {
+            console.error("Image loading failed:", e);
+            sheet.getCell(`${colLetter}${currentRow}`).value = "Error al cargar";
+            sheet.getCell(`${colLetter}${currentRow}`).alignment = centerAlign;
+          }
+        };
+
+        await addImageToCell(f.finding_image_path, "D", 3);
+        await addImageToCell(f.countermeasure_image_path, "H", 7);
+
+        currentRow++;
+      }
+
+      sheet.autoFilter = {
+        from: { row: 21, column: 1 },
+        to: { row: currentRow - 1, column: 11 }
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `Reporte_Auditoria_${audit.audit_folio || audit.id}.xlsx`;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (err) {
+      console.error("Excel generation error:", err);
+      alert("Error al generar el formato Excel. Inténtelo de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreateFinding = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -600,6 +899,13 @@ const DetalleAuditoria = () => {
                 onClick={printAudit}
               >
                 🖨️ Generar Formato
+              </button>
+              <button 
+                className="btn-new-audit" 
+                style={{ background: 'linear-gradient(135deg, #1D6F42, #105B34)', border: 'none', color: 'white' }}
+                onClick={exportToExcel}
+              >
+                📥 Exportar a Excel
               </button>
               {(role !== "Supervisor" && role !== "Admin") && (
                 <button className="btn-new-audit" onClick={() => setShowAddFindingModal(true)}>
